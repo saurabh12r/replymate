@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="replymate_fgs_channel_name">Auto reply</string>
+    <string name="replymate_fgs_channel_desc">Keeps call and SMS auto-reply reliable while enabled</string>
+    <string name="replymate_fgs_title">Auto Reply is Active</string>
+    <string name="replymate_fgs_text">ReplyMate is running in the background</string>
+</resources>

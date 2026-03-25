@@ -1,0 +1,254 @@
+package com.replymate.reply_mate.autoreply
+
+import android.content.Context
+import org.json.JSONObject
+
+class AutoReplyConfigStore(context: Context) {
+    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    fun setEnabled(enabled: Boolean) {
+        // Write both new and legacy keys to keep backward compatibility.
+        prefs.edit()
+            .putBoolean(KEY_MASTER_ENABLED, enabled)
+            .putBoolean(KEY_AUTO_REPLY_ENABLED, enabled)
+            .putBoolean(LEGACY_KEY_AUTO_REPLY_ENABLED, enabled)
+            .apply()
+    }
+
+    fun setReplyRules(
+        replyOnMissedCall: Boolean,
+        replyOnIncomingCall: Boolean,
+        replyOnWhatsappCall: Boolean,
+        replyOnBusyCall: Boolean,
+        replyOnOutgoingCall: Boolean
+    ) {
+        prefs.edit()
+            .putBoolean(KEY_REPLY_MISSED_CALL, replyOnMissedCall)
+            .putBoolean(KEY_REPLY_INCOMING_CALL, replyOnIncomingCall)
+            .putBoolean(KEY_REPLY_WHATSAPP_CALL, replyOnWhatsappCall)
+            .putBoolean(KEY_REPLY_BUSY_CALL, replyOnBusyCall)
+            .putBoolean(KEY_REPLY_OUTGOING_CALL, replyOnOutgoingCall)
+            .putBoolean(KEY_REPLY_ON_MISSED_CALL, replyOnMissedCall)
+            .putBoolean(KEY_REPLY_ON_CALL_ANSWERED, replyOnIncomingCall)
+            .putBoolean(KEY_REPLY_ON_WHATSAPP_CALL, replyOnWhatsappCall)
+            .apply()
+    }
+
+    fun setCustomMessages(
+        missedCallMessage: String,
+        incomingCallMessage: String,
+        whatsappCallMessage: String,
+        busyCallMessage: String,
+        outgoingCallMessage: String
+    ) {
+        prefs.edit()
+            .putString(KEY_MSG_MISSED_CALL, normalizeMessage(missedCallMessage, DEFAULT_MISSED_CALL_MESSAGE))
+            .putString(KEY_MSG_INCOMING_CALL, normalizeMessage(incomingCallMessage, DEFAULT_INCOMING_CALL_MESSAGE))
+            .putString(KEY_MSG_WHATSAPP_CALL, normalizeMessage(whatsappCallMessage, DEFAULT_WHATSAPP_CALL_MESSAGE))
+            .putString(KEY_MSG_BUSY_CALL, normalizeMessage(busyCallMessage, DEFAULT_BUSY_CALL_MESSAGE))
+            .putString(KEY_MSG_OUTGOING_CALL, normalizeMessage(outgoingCallMessage, DEFAULT_OUTGOING_CALL_MESSAGE))
+            .apply()
+    }
+
+    fun setConfig(
+        autoReplyEnabled: Boolean,
+        replyOnCallAnswered: Boolean,
+        replyOnMissedCall: Boolean,
+        replyOnWhatsappCall: Boolean,
+        replyOnBusyCall: Boolean,
+        replyOnOutgoingCall: Boolean,
+        useTimeRange: Boolean,
+        startMinutes: Int,
+        endMinutes: Int,
+        defaultReplyMessage: String
+    ) {
+        prefs.edit()
+            .putBoolean(KEY_MASTER_ENABLED, autoReplyEnabled)
+            .putBoolean(KEY_AUTO_REPLY_ENABLED, autoReplyEnabled)
+            .putBoolean(LEGACY_KEY_AUTO_REPLY_ENABLED, autoReplyEnabled)
+            .putBoolean(KEY_REPLY_ON_CALL_ANSWERED, replyOnCallAnswered)
+            .putBoolean(KEY_REPLY_ON_MISSED_CALL, replyOnMissedCall)
+            .putBoolean(KEY_REPLY_ON_WHATSAPP_CALL, replyOnWhatsappCall)
+            .putBoolean(KEY_REPLY_INCOMING_CALL, replyOnCallAnswered)
+            .putBoolean(KEY_REPLY_MISSED_CALL, replyOnMissedCall)
+            .putBoolean(KEY_REPLY_WHATSAPP_CALL, replyOnWhatsappCall)
+            .putBoolean(KEY_REPLY_BUSY_CALL, replyOnBusyCall)
+            .putBoolean(KEY_REPLY_OUTGOING_CALL, replyOnOutgoingCall)
+            .putBoolean(KEY_USE_TIME_RANGE, useTimeRange)
+            .putInt(KEY_START_MINUTES, startMinutes)
+            .putInt(KEY_END_MINUTES, endMinutes)
+            .putString(KEY_DEFAULT_REPLY_MESSAGE, defaultReplyMessage)
+            .apply()
+    }
+
+    fun isEnabled(): Boolean {
+        return if (prefs.contains(KEY_MASTER_ENABLED)) {
+            prefs.getBoolean(KEY_MASTER_ENABLED, true)
+        } else if (prefs.contains(KEY_AUTO_REPLY_ENABLED)) {
+            prefs.getBoolean(KEY_AUTO_REPLY_ENABLED, true)
+        } else {
+            // Fallback for older installs.
+            prefs.getBoolean(LEGACY_KEY_AUTO_REPLY_ENABLED, true)
+        }
+    }
+
+    fun isEnabledFailSafe(): Boolean {
+        return try {
+            isEnabled()
+        } catch (_: Exception) {
+            false
+        }
+    }
+    fun getAutoReplyEnabled(): Boolean = isEnabled()
+    fun setAutoReplyEnabled(value: Boolean) = setEnabled(value)
+    fun getReplyMissedCall(): Boolean = replyOnMissedCall()
+    fun getReplyIncomingCall(): Boolean = replyOnCallAnswered()
+    fun getReplyWhatsappCall(): Boolean = replyOnWhatsappCall()
+    fun getReplyBusyCall(): Boolean = replyOnBusyCall()
+    fun getReplyOutgoingCall(): Boolean = replyOnOutgoingCall()
+    fun getThrottleEnabled(): Boolean = throttleEnabled()
+    fun getMissedCallMessage(): String = missedCallMessage()
+    fun getIncomingCallMessage(): String = incomingCallMessage()
+    fun getWhatsappCallMessage(): String = whatsappCallMessage()
+    fun getBusyCallMessage(): String = busyCallMessage()
+    fun getOutgoingCallMessage(): String = outgoingCallMessage()
+
+    fun replyOnCallAnswered(): Boolean {
+        return if (prefs.contains(KEY_REPLY_INCOMING_CALL)) {
+            prefs.getBoolean(KEY_REPLY_INCOMING_CALL, false)
+        } else {
+            prefs.getBoolean(KEY_REPLY_ON_CALL_ANSWERED, false)
+        }
+    }
+    fun replyOnMissedCall(): Boolean {
+        return if (prefs.contains(KEY_REPLY_MISSED_CALL)) {
+            prefs.getBoolean(KEY_REPLY_MISSED_CALL, true)
+        } else {
+            prefs.getBoolean(KEY_REPLY_ON_MISSED_CALL, true)
+        }
+    }
+    fun replyOnWhatsappCall(): Boolean {
+        return if (prefs.contains(KEY_REPLY_WHATSAPP_CALL)) {
+            prefs.getBoolean(KEY_REPLY_WHATSAPP_CALL, true)
+        } else {
+            prefs.getBoolean(KEY_REPLY_ON_WHATSAPP_CALL, true)
+        }
+    }
+
+    fun replyOnBusyCall(): Boolean {
+        return prefs.getBoolean(KEY_REPLY_BUSY_CALL, false)
+    }
+
+    fun replyOnOutgoingCall(): Boolean {
+        return prefs.getBoolean(KEY_REPLY_OUTGOING_CALL, false)
+    }
+    fun useTimeRange(): Boolean = prefs.getBoolean(KEY_USE_TIME_RANGE, false)
+    fun startMinutes(): Int = prefs.getInt(KEY_START_MINUTES, 9 * 60)
+    fun endMinutes(): Int = prefs.getInt(KEY_END_MINUTES, 21 * 60)
+    fun defaultReplyMessage(): String =
+        prefs.getString(KEY_DEFAULT_REPLY_MESSAGE, DEFAULT_MESSAGE) ?: DEFAULT_MESSAGE
+
+    fun missedCallMessage(): String {
+        val value = prefs.getString(KEY_MSG_MISSED_CALL, DEFAULT_MISSED_CALL_MESSAGE)?.trim()
+        return if (value.isNullOrEmpty()) DEFAULT_MISSED_CALL_MESSAGE else value
+    }
+
+    fun incomingCallMessage(): String {
+        val value = prefs.getString(KEY_MSG_INCOMING_CALL, DEFAULT_INCOMING_CALL_MESSAGE)?.trim()
+        return if (value.isNullOrEmpty()) DEFAULT_INCOMING_CALL_MESSAGE else value
+    }
+
+    fun whatsappCallMessage(): String {
+        val value = prefs.getString(KEY_MSG_WHATSAPP_CALL, DEFAULT_WHATSAPP_CALL_MESSAGE)?.trim()
+        return if (value.isNullOrEmpty()) DEFAULT_WHATSAPP_CALL_MESSAGE else value
+    }
+
+    fun busyCallMessage(): String {
+        val value = prefs.getString(KEY_MSG_BUSY_CALL, DEFAULT_BUSY_CALL_MESSAGE)?.trim()
+        return if (value.isNullOrEmpty()) DEFAULT_BUSY_CALL_MESSAGE else value
+    }
+
+    fun outgoingCallMessage(): String {
+        val value = prefs.getString(KEY_MSG_OUTGOING_CALL, DEFAULT_OUTGOING_CALL_MESSAGE)?.trim()
+        return if (value.isNullOrEmpty()) DEFAULT_OUTGOING_CALL_MESSAGE else value
+    }
+
+    fun messageForEvent(event: AutoReplyEvent): String {
+        return when (event) {
+            AutoReplyEvent.MISSED_CALL -> missedCallMessage()
+            AutoReplyEvent.CALL_ANSWERED -> incomingCallMessage()
+            AutoReplyEvent.MISSED_WHATSAPP_CALL -> whatsappCallMessage()
+            AutoReplyEvent.BUSY_CALL -> busyCallMessage()
+            AutoReplyEvent.OUTGOING_CALL -> outgoingCallMessage()
+        }
+    }
+
+    fun toMap(): Map<String, Any> {
+        return mapOf(
+            "autoReplyEnabled" to isEnabled(),
+            "replyOnCallAnswered" to replyOnCallAnswered(),
+            "replyOnMissedCall" to replyOnMissedCall(),
+            "replyOnWhatsappCall" to replyOnWhatsappCall(),
+            "replyOnBusyCall" to replyOnBusyCall(),
+            "replyOnOutgoingCall" to replyOnOutgoingCall(),
+            "throttleEnabled" to throttleEnabled(),
+            "msgMissedCall" to missedCallMessage(),
+            "msgIncomingCall" to incomingCallMessage(),
+            "msgWhatsappCall" to whatsappCallMessage(),
+            "msgBusyCall" to busyCallMessage(),
+            "msgOutgoingCall" to outgoingCallMessage(),
+            "useTimeRange" to useTimeRange(),
+            "startMinutes" to startMinutes(),
+            "endMinutes" to endMinutes(),
+            "defaultReplyMessage" to defaultReplyMessage()
+        )
+    }
+
+    fun toJson(): String = JSONObject(toMap()).toString()
+
+    companion object {
+        const val PREFS_NAME = "replymate_auto_reply_prefs"
+        const val KEY_MASTER_ENABLED = "auto_reply_enabled"
+        const val KEY_AUTO_REPLY_ENABLED = "autoReplyEnabled"
+        const val LEGACY_KEY_AUTO_REPLY_ENABLED = "auto_reply_enabled"
+        const val KEY_REPLY_MISSED_CALL = "reply_missed_call"
+        const val KEY_REPLY_INCOMING_CALL = "reply_incoming_call"
+        const val KEY_REPLY_WHATSAPP_CALL = "reply_whatsapp_call"
+        const val KEY_REPLY_BUSY_CALL = "reply_busy_call"
+        const val KEY_REPLY_OUTGOING_CALL = "reply_outgoing_call"
+        const val KEY_REPLY_ON_CALL_ANSWERED = "reply_on_call_answered"
+        const val KEY_REPLY_ON_MISSED_CALL = "reply_on_missed_call"
+        const val KEY_REPLY_ON_WHATSAPP_CALL = "reply_on_whatsapp_call"
+        const val KEY_MSG_MISSED_CALL = "msg_missed_call"
+        const val KEY_MSG_INCOMING_CALL = "msg_incoming_call"
+        const val KEY_MSG_WHATSAPP_CALL = "msg_whatsapp_call"
+        const val KEY_MSG_BUSY_CALL = "msg_busy_call"
+        const val KEY_MSG_OUTGOING_CALL = "msg_outgoing_call"
+        const val KEY_THROTTLE_ENABLED = "throttle_enabled"
+        const val KEY_USE_TIME_RANGE = "use_time_range"
+        const val KEY_START_MINUTES = "start_minutes"
+        const val KEY_END_MINUTES = "end_minutes"
+        const val KEY_DEFAULT_REPLY_MESSAGE = "default_reply_message"
+        private const val DEFAULT_MESSAGE = "I'll call you later."
+        private const val DEFAULT_MISSED_CALL_MESSAGE = "Sorry, I missed your call. I'll call you back."
+        private const val DEFAULT_INCOMING_CALL_MESSAGE = "I'm currently busy, will get back to you soon."
+        private const val DEFAULT_WHATSAPP_CALL_MESSAGE = "Sorry, I missed your WhatsApp call."
+        private const val DEFAULT_BUSY_CALL_MESSAGE = "I'm on another call right now. I'll call you back."
+        private const val DEFAULT_OUTGOING_CALL_MESSAGE = "I'm currently on a call. I'll get back to you soon."
+    }
+
+    private fun normalizeMessage(value: String?, fallback: String): String {
+        val normalized = value?.trim()
+        return if (normalized.isNullOrEmpty()) fallback else normalized
+    }
+
+    fun throttleEnabled(): Boolean {
+        return prefs.getBoolean(KEY_THROTTLE_ENABLED, true)
+    }
+
+    fun setThrottleEnabled(enabled: Boolean) {
+        prefs.edit()
+            .putBoolean(KEY_THROTTLE_ENABLED, enabled)
+            .apply()
+    }
+}
