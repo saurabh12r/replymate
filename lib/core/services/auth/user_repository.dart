@@ -1,11 +1,22 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../../../features/profile_nav/user_model.dart';
 
 class UserRepository {
-  UserRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  UserRepository({FirebaseFirestore? firestore}) : _firestoreOverride = firestore;
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestoreOverride;
+
+  FirebaseFirestore get _firestore {
+    final o = _firestoreOverride;
+    if (o != null) return o;
+
+    // Avoid touching Firebase synchronously before initialization.
+    if (Firebase.apps.isEmpty) {
+      throw StateError('Firebase is not initialized yet');
+    }
+    return FirebaseFirestore.instance;
+  }
 
   CollectionReference<Map<String, dynamic>> get _users =>
       _firestore.collection('users');
@@ -37,6 +48,13 @@ class UserRepository {
   Future<Map<String, dynamic>?> getUserByPhone(String phone) async {
     final doc = await _users.doc(phone).get();
     return doc.data();
+  }
+
+  Stream<Map<String, dynamic>?> watchUserByPhone(String phone) {
+    return _users.doc(phone).snapshots().map((snapshot) {
+      if (!snapshot.exists) return null;
+      return snapshot.data();
+    });
   }
 
   Stream<UserModel?> watchUserByUid(String uid) {

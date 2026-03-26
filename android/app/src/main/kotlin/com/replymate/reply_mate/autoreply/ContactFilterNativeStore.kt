@@ -33,6 +33,9 @@ object ContactFilterNativeStore {
             return mode != "ONLY"
         }
         val set = parsePhones(prefs.getString(KEY_PHONES_JSON, "[]"))
+        // If the stored JSON is corrupted/unparseable, fail open to keep the core
+        // auto-reply system working instead of sending zero replies.
+        if (set == null) return true
         return when (mode) {
             "ONLY" -> set.contains(canon)
             "EXCLUDE" -> !set.contains(canon)
@@ -40,7 +43,7 @@ object ContactFilterNativeStore {
         }
     }
 
-    private fun parsePhones(json: String?): Set<String> {
+    private fun parsePhones(json: String?): Set<String>? {
         if (json.isNullOrBlank()) return emptySet()
         return try {
             val arr = JSONArray(json)
@@ -55,7 +58,7 @@ object ContactFilterNativeStore {
             out
         } catch (e: Exception) {
             Log.w(TAG, "parsePhones failed", e)
-            emptySet()
+            null
         }
     }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/services/local/onboarding_state_service.dart';
 import '../../core/services/permissions/permission_service.dart';
 
 /// PermissionsSetupController
@@ -13,6 +14,8 @@ class PermissionsSetupController extends GetxController
       : _permissionService = permissionService ?? PermissionService();
 
   final PermissionService _permissionService;
+  final OnboardingStateService _onboardingStateService =
+      Get.find<OnboardingStateService>();
 
   // ── Per-permission reactive status ────────────────────────────────────────
   final RxBool isSmsGranted = false.obs;
@@ -107,7 +110,9 @@ class PermissionsSetupController extends GetxController
     final granted = await checkAllPermissions();
     isLoading.value = false;
     if (granted) {
-      Get.offNamed(Routes.notificationGuide);
+      // sms-config removed from navigation; proceed to main app.
+      await _onboardingStateService.markOnboardingComplete();
+      Get.offAllNamed(Routes.dashboard);
     } else {
       errorMessage.value =
           'Some required permissions are still denied. Please grant all permissions to continue.';

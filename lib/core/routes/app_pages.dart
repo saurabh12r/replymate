@@ -9,12 +9,8 @@ import '../../features/otp/otp_view.dart';
 import '../../features/otp/otp_binding.dart';
 import '../../features/permissions_setup/permissions_setup_view.dart';
 import '../../features/permissions_setup/permissions_setup_binding.dart';
-import '../../features/notification_guide/notification_guide_view.dart';
-import '../../features/notification_guide/notification_guide_binding.dart';
 import '../../features/permission_error/permission_error_view.dart';
 import '../../features/permission_error/permission_error_binding.dart';
-import '../../features/sms_config/sms_config_view.dart';
-import '../../features/sms_config/sms_config_binding.dart';
 import '../../features/dashboard_nav/dashboard_nav_view.dart';
 import '../../features/dashboard_nav/dashboard_nav_binding.dart';
 import '../../features/reports/reports_view.dart';
@@ -70,20 +66,6 @@ class AppPages {
       name: Routes.permissionError,
       page: () => const PermissionErrorView(),
       binding: PermissionErrorBinding(),
-      transition: Transition.rightToLeft,
-      transitionDuration: const Duration(milliseconds: 300),
-    ),
-    GetPage(
-      name: Routes.notificationGuide,
-      page: () => const NotificationGuideView(),
-      binding: NotificationGuideBinding(),
-      transition: Transition.rightToLeft,
-      transitionDuration: const Duration(milliseconds: 300),
-    ),
-    GetPage(
-      name: Routes.smsConfig,
-      page: () => const SmsConfigView(),
-      binding: SmsConfigBinding(),
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),
     ),

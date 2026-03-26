@@ -3,15 +3,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 class OnboardingStateService {
   static const String _firstTimeUserKey = 'isFirstTimeUser';
 
-  late final SharedPreferences _prefs;
+  SharedPreferences? _prefs;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
   }
 
-  bool get isFirstTimeUser => _prefs.getBool(_firstTimeUserKey) ?? true;
+  /// Safe before [init] completes (defaults to first-time until prefs load).
+  bool get isFirstTimeUser {
+    final p = _prefs;
+    if (p == null) return true;
+    return p.getBool(_firstTimeUserKey) ?? true;
+  }
 
-  Future<void> markOnboardingComplete() {
-    return _prefs.setBool(_firstTimeUserKey, false);
+  Future<void> markOnboardingComplete() async {
+    final p = _prefs ?? await SharedPreferences.getInstance();
+    _prefs = p;
+    await p.setBool(_firstTimeUserKey, false);
   }
 }

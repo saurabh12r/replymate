@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,6 +27,11 @@ class ActivityLogService {
 
   Box<ActivityLog>? _box;
 
+  bool get isBoxReady {
+    final b = _box;
+    return b != null && b.isOpen;
+  }
+
   Box<ActivityLog> get box {
     final b = _box;
     if (b == null || !b.isOpen) {
@@ -36,21 +42,44 @@ class ActivityLogService {
 
   /// Registers adapter, migrates schema if needed, opens [kActivityLogsBoxName].
   static Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getInt(_kHiveSchemaPrefsKey) ?? 0;
-    if (stored < _kHiveActivitySchemaVersion) {
-      await Hive.deleteBoxFromDisk(kActivityLogsBoxName);
-      await prefs.setInt(_kHiveSchemaPrefsKey, _kHiveActivitySchemaVersion);
+    void registerAdapterIfNeeded() {
+      if (!Hive.isAdapterRegistered(ActivityLogAdapter().typeId)) {
+        Hive.registerAdapter(ActivityLogAdapter());
+      }
     }
 
-    if (!Hive.isAdapterRegistered(ActivityLogAdapter().typeId)) {
-      Hive.registerAdapter(ActivityLogAdapter());
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getInt(_kHiveSchemaPrefsKey) ?? 0;
+      if (stored < _kHiveActivitySchemaVersion) {
+        try {
+          await Hive.deleteBoxFromDisk(kActivityLogsBoxName);
+        } catch (_) {}
+        await prefs.setInt(_kHiveSchemaPrefsKey, _kHiveActivitySchemaVersion);
+      }
+      registerAdapterIfNeeded();
+      instance._box = await Hive.openBox<ActivityLog>(kActivityLogsBoxName);
+    } catch (e, st) {
+      assert(() {
+        debugPrint('ReplyMate: ActivityLogService.init primary path failed: $e\n$st');
+        return true;
+      }());
+      try {
+        registerAdapterIfNeeded();
+        instance._box = await Hive.openBox<ActivityLog>(kActivityLogsBoxName);
+      } catch (e2, st2) {
+        assert(() {
+          debugPrint('ReplyMate: ActivityLogService.init fallback failed: $e2\n$st2');
+          return true;
+        }());
+        instance._box = null;
+      }
     }
-    instance._box = await Hive.openBox<ActivityLog>(kActivityLogsBoxName);
   }
 
   /// Deletes entries older than 7 days (local rolling window). Returns removed count.
   Future<int> cleanOldLogs() async {
+    if (!isBoxReady) return 0;
     final b = box;
     final keysToDelete = <dynamic>[];
     for (final key in b.keys) {
@@ -70,6 +99,7 @@ class ActivityLogService {
 
   /// Import native pending lines (call rows + replied patches).
   Future<int> syncPendingFromNative() async {
+    if (!isBoxReady) return 0;
     final lines = await _channel.pullPendingLogs();
     if (lines.isEmpty) return 0;
     var n = 0;
@@ -150,6 +180,7 @@ class ActivityLogService {
     bool replied = false,
     String messageSent = '',
   }) async {
+    if (!isBoxReady) return;
     final log = ActivityLog(
       id: _newId(),
       name: name.trim(),
@@ -162,15 +193,20 @@ class ActivityLogService {
     await _putIfAllowed(log);
   }
 
-  Future<void> deleteLog(String id) => box.delete(id);
+  Future<void> deleteLog(String id) async {
+    if (!isBoxReady) return;
+    await box.delete(id);
+  }
 
   Future<bool> _putIfAllowed(ActivityLog candidate) async {
+    if (!isBoxReady) return false;
     if (_isDuplicateOfRecent(candidate)) return false;
     await box.put(candidate.id, candidate);
     return true;
   }
 
   bool _isDuplicateOfRecent(ActivityLog candidate) {
+    if (!isBoxReady) return false;
     final now = candidate.timestamp.toUtc().millisecondsSinceEpoch;
     final entries = box.toMap().entries.toList();
     final start = entries.length > _dedupeScanMax ? entries.length - _dedupeScanMax : 0;

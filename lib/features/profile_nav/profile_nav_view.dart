@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/routes/app_routes.dart';
+import '../analytics_nav/analytics_nav_view.dart';
 import '../contact_filter/contact_filter_tab.dart';
+import '../stores/stores_controller.dart';
+import '../stores/stores_list_view.dart';
 import 'profile_nav_controller.dart';
 
 /// User Profile Nav View (tab content — no bottom nav of its own)
@@ -64,8 +67,6 @@ class ProfileNavView extends GetView<ProfileNavController> {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 _buildContactCard(),
-                const SizedBox(height: 16),
-                _buildStatsRow(),
                 const SizedBox(height: 20),
                 _buildSectionLabel('Account'),
                 const SizedBox(height: 10),
@@ -269,24 +270,6 @@ class ProfileNavView extends GetView<ProfileNavController> {
     );
   }
 
-  // ── Stats row ──────────────────────────────────────────────────────────────
-  Widget _buildStatsRow() {
-    return Obx(() {
-      final replies = controller.smartReplies.value;
-      final accuracy = controller.accuracyRate.value;
-      final days = controller.activeDays.value;
-      return Row(
-        children: [
-          _StatChip(value: replies, label: 'Smart Replies', color: _primary),
-          const SizedBox(width: 10),
-          _StatChip(value: accuracy, label: 'Accuracy Rate', color: _secondary),
-          const SizedBox(width: 10),
-          _StatChip(value: days, label: 'Active Days', color: const Color(0xFFE65100)),
-        ],
-      );
-    });
-  }
-
   // ── Options list ───────────────────────────────────────────────────────────
   Widget _buildOptionsList() {
     return _OptionGroup(
@@ -304,6 +287,25 @@ class ProfileNavView extends GetView<ProfileNavController> {
           subtitle: 'Choose who receives auto-replies',
           color: const Color(0xFF1565C0),
           onTap: () => Get.to(() => const ContactFilterTab()),
+        ),
+        _OptionItem(
+          icon: Icons.analytics_rounded,
+          label: 'Analytics',
+          subtitle: 'Reports & insights',
+          color: const Color(0xFF6D28D9),
+          onTap: () => Get.to(() => const AnalyticsNavView()),
+        ),
+        _OptionItem(
+          icon: Icons.storefront_rounded,
+          label: 'Businesses',
+          subtitle: 'SIM lines, messages & reply types',
+          color: const Color(0xFF1565C0),
+          onTap: () {
+            if (!Get.isRegistered<StoresController>()) {
+              Get.put(StoresController());
+            }
+            Get.to(() => const StoresListView());
+          },
         ),
       ],
     );
@@ -445,38 +447,6 @@ class _ContactRow extends StatelessWidget {
         ),
         Icon(Icons.copy_rounded, size: 16, color: color.withAlpha(120)),
       ],
-    );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  const _StatChip({required this.value, required this.label, required this.color});
-
-  final String value;
-  final String label;
-  final Color color;
-
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 8, offset: const Offset(0, 3))],
-        ),
-        child: Column(
-          children: [
-            Text(value, style: TextStyle(fontFamily: 'Manrope', fontSize: 18, fontWeight: FontWeight.w800, color: _onSurface, height: 1)),
-            const SizedBox(height: 2),
-            Text(label, textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 9, color: _onSurfaceVariant)),
-          ],
-        ),
-      ),
     );
   }
 }

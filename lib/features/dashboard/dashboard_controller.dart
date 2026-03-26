@@ -8,6 +8,7 @@ import '../../core/services/auto_reply/auto_reply_bridge.dart';
 import '../../core/services/auto_reply/auto_reply_event_stream.dart';
 import '../../core/services/auto_reply/auto_reply_preferences.dart';
 import '../../core/services/auth/user_repository.dart';
+import '../../core/stores/reply_store_models.dart';
 
 /// DashboardController
 /// Stitch Screen ID: c9f778dbd8df4d52b55759e3997f2300
@@ -28,7 +29,10 @@ class DashboardController extends GetxController {
   final RxBool autoReplyEnabled = true.obs;
   final RxString status = 'Operational'.obs;
 
-  // ── Active message preview ────────────────────────────────────────────────
+  /// Shown on dashboard instead of per-message preview (default SMS / first active store).
+  final RxString activeBusinessName = ''.obs;
+
+  // ── Active message preview (still loaded for any legacy use) ───────────────
   final RxString missedCallMessage =
       "Sorry, I missed your call. I'll call you back.".obs;
   final RxString incomingCallMessage =
@@ -69,7 +73,7 @@ class DashboardController extends GetxController {
   void onReady() {
     super.onReady();
     _loadAutoReplyState();
-    ActivityLogService.instance.cleanOldLogs();
+    unawaited(_cleanOldLogsSafe());
   }
 
   Future<void> _loadAutoReplyState() async {
@@ -86,26 +90,76 @@ class DashboardController extends GetxController {
         await _autoReplyBridge.setAutoReplyEnabled(enabled);
       }
 
-      replyOnMissedCall.value = await _autoReplyPreferences.getReplyMissedCall();
-      replyOnIncomingCall.value =
-          await _autoReplyPreferences.getReplyIncomingCall();
-      replyOnWhatsappCall.value =
-          await _autoReplyPreferences.getReplyWhatsappCall();
-      replyOnBusyCall.value = await _autoReplyPreferences.getReplyBusyCall();
-      replyOnOutgoingCall.value =
-          await _autoReplyPreferences.getReplyOutgoingCall();
-      missedCallMessage.value =
-          await _autoReplyPreferences.getMissedCallMessage();
-      incomingCallMessage.value =
-          await _autoReplyPreferences.getIncomingCallMessage();
-      whatsappCallMessage.value =
-          await _autoReplyPreferences.getWhatsappCallMessage();
-      busyCallMessage.value = await _autoReplyPreferences.getBusyCallMessage();
-      outgoingCallMessage.value =
-          await _autoReplyPreferences.getOutgoingCallMessage();
+      final raw = await _autoReplyBridge.getStoresJson();
+      final stores = parseReplyStoresJson(raw);
+      final subId = await _autoReplyBridge.getDefaultSmsSubscriptionId();
+      ReplyStore? store;
+      if (subId != null) {
+        final match = findStoreForSubscription(stores, subId);
+        if (match != null && _isBusinessActiveOnLine(match)) {
+          store = match;
+        }
+      }
+      if (store == null) {
+        for (final s in stores) {
+          if (_isBusinessActiveOnLine(s)) {
+            store = s;
+            break;
+          }
+        }
+      }
+      if (store != null) {
+        _applyStorePreview(store);
+      } else {
+        _clearStorePreview();
+      }
     } catch (_) {
       // Keep current UI state if bridge read fails.
     }
+  }
+
+  Future<void> _cleanOldLogsSafe() async {
+    try {
+      await ActivityLogService.instance.cleanOldLogs();
+    } catch (_) {}
+  }
+
+  /// Matches Businesses screen: ON + SIM selected.
+  static bool _isBusinessActiveOnLine(ReplyStore s) =>
+      s.active && s.subscriptionId != null;
+
+  void _applyStorePreview(ReplyStore store) {
+    activeBusinessName.value = store.name;
+    replyOnMissedCall.value = store.replyMissedCall;
+    replyOnIncomingCall.value = store.replyIncomingCall;
+    replyOnWhatsappCall.value = store.replyWhatsappCall;
+    replyOnBusyCall.value = store.replyBusyCall;
+    replyOnOutgoingCall.value = store.replyOutgoingCall;
+    missedCallMessage.value =
+        store.messageForEventKey(ReplyStoreEventKeys.missedCall) ?? '—';
+    incomingCallMessage.value =
+        store.messageForEventKey(ReplyStoreEventKeys.incomingCall) ?? '—';
+    whatsappCallMessage.value =
+        store.messageForEventKey(ReplyStoreEventKeys.missedWhatsapp) ?? '—';
+    busyCallMessage.value =
+        store.messageForEventKey(ReplyStoreEventKeys.busyCall) ?? '—';
+    outgoingCallMessage.value =
+        store.messageForEventKey(ReplyStoreEventKeys.outgoingCall) ?? '—';
+  }
+
+  void _clearStorePreview() {
+    activeBusinessName.value = '';
+    replyOnMissedCall.value = false;
+    replyOnIncomingCall.value = false;
+    replyOnWhatsappCall.value = false;
+    replyOnBusyCall.value = false;
+    replyOnOutgoingCall.value = false;
+    const dash = '—';
+    missedCallMessage.value = dash;
+    incomingCallMessage.value = dash;
+    whatsappCallMessage.value = dash;
+    busyCallMessage.value = dash;
+    outgoingCallMessage.value = dash;
   }
 
   Future<bool> _isAutoReplyAllowedInFirebase() async {

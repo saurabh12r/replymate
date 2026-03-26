@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dashboard_nav_controller.dart';
 import 'dashboard_home_tab.dart';
 import '../logs_nav/logs_nav_view.dart';
-import '../analytics/analytics_tab.dart';
 import '../profile/profile_tab.dart';
+import '../stores/stores_list_view.dart';
 
 /// Dashboard with Navigation (Shell)
 /// Stitch Screen ID: 8838ec89e7394356ae1cdd9b72e02d8b
@@ -20,7 +20,7 @@ class DashboardNavView extends GetView<DashboardNavController> {
   static const _tabs = [
     (Icons.dashboard_rounded, 'Dashboard'),
     (Icons.list_alt_rounded, 'Logs'),
-    (Icons.analytics_rounded, 'Analytics'),
+    (Icons.storefront_rounded, 'Businesses'),
     (Icons.person_rounded, 'Profile'),
   ];
 
@@ -34,7 +34,7 @@ class DashboardNavView extends GetView<DashboardNavController> {
               children: const [
                 DashboardHomeTab(),
                 LogsNavView(),
-                AnalyticsTab(),
+                StoresListView(showBack: false),
                 ProfileTab(),
               ],
             )),

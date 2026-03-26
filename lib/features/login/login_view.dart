@@ -11,8 +11,8 @@ import 'login_controller.dart';
 class LoginView extends GetView<LoginController> {
   const LoginView({super.key});
 
-  static const Color _primary = Color(0xFFFF8C00);
-  static const Color _primaryContainer = Color(0xFFFFA726);
+  static const Color _primary = Color(0xFF24389C);
+  static const Color _primaryContainer = Color(0xFF3F51B5);
   static const Color _surface = Color(0xFFF8F9FA);
   static const Color _surfaceContainerLowest = Color(0xFFFFFFFF);
   static const Color _surfaceContainerLow = Color(0xFFF3F4F5);
@@ -105,7 +105,7 @@ class LoginView extends GetView<LoginController> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFF57C00), _primary, _primaryContainer],
+          colors: [Color(0xFF1A2980), _primary, _primaryContainer],
           stops: [0.0, 0.5, 1.0],
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),

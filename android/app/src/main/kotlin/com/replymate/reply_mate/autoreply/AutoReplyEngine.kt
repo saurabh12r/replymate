@@ -26,36 +26,56 @@ enum class AutoReplyEvent {
 
 object AutoReplyEngine {
     private const val TAG = "ReplyMateAutoReply"
-    /** Cooldown per phone (across ALL events), restart-proof via SharedPreferences. */
+    /** Cooldown per phone (across ALL events and stores), restart-proof via SharedPreferences. */
     private const val THROTTLE_WINDOW_MS = 60 * 60 * 1000L // 1 hour
 
-    // New (vNext): per-phone cooldown.
     private const val KEY_LAST_REPLY_AT_PHONE_PREFIX = "last_reply_at_phone_"
 
-    // Legacy (pre vNext): single last phone+event cooldown.
     private const val LEGACY_KEY_LAST_REPLY_PHONE = "last_reply_phone"
     private const val LEGACY_KEY_LAST_REPLY_EVENT = "last_reply_event"
     private const val LEGACY_KEY_LAST_REPLY_AT = "last_reply_at"
 
     /**
-     * Creates activity log + dispatches SMS when allowed. Logs and events are centralized here
-     * so receivers stay thin (restart-safe throttling in prefs).
+     * @param subscriptionId SIM that owns this call event; must match a store's link. Null/invalid → no reply.
      */
     fun handleEvent(
         context: Context,
         event: AutoReplyEvent,
         rawPhoneNumber: String?,
+        subscriptionId: Int?,
     ): Boolean {
         val config = AutoReplyConfigStore(context)
-        Log.d(TAG, "Event detected: event=$event rawPhone=$rawPhoneNumber")
+        // Hard block: native must immediately stop all processing when blocked.
+        if (config.getBlocked()) return false
+        val storeConfig = StoreConfigStore(context)
+        storeConfig.ensureMigrated()
+
+        Log.d(TAG, "Event detected: event=$event rawPhone=$rawPhoneNumber subscriptionId=$subscriptionId")
+
         if (!config.isEnabledFailSafe()) {
             Log.d(TAG, "Blocked: autoReplyEnabled=false")
             return false
         }
-        if (!isEventEnabled(config, event)) {
-            Log.d(TAG, "Blocked: event toggle disabled for $event")
+
+        if (subscriptionId == null || subscriptionId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            Log.d(TAG, "Blocked: no subscriptionId for event")
             return false
         }
+
+        val store = storeConfig.findStoreBySubscriptionId(subscriptionId)
+        if (store == null) {
+            Log.d(TAG, "Blocked: no store linked to subscriptionId=$subscriptionId")
+            return false
+        }
+        if (!store.active) {
+            Log.d(TAG, "Blocked: store inactive id=${store.id}")
+            return false
+        }
+        if (!store.isEventEnabled(event)) {
+            Log.d(TAG, "Blocked: event toggle disabled for $event store=${store.id}")
+            return false
+        }
+
         if (!isWithinActiveWindow(config)) {
             Log.d(
                 TAG,
@@ -83,9 +103,10 @@ object AutoReplyEngine {
             Log.d(TAG, "Blocked: contact filter")
             return false
         }
-        val message = config.messageForEvent(event).trim()
+
+        val message = store.resolveMessage(event)?.trim().orEmpty()
         if (message.isEmpty()) {
-            Log.d(TAG, "Blocked: empty auto-reply message")
+            Log.d(TAG, "Blocked: empty template message for event=$event store=${store.id}")
             return false
         }
 
@@ -126,11 +147,11 @@ object AutoReplyEngine {
         )
 
         return try {
-            val smsManager = resolveSmsManager()
+            val smsManager = resolveSmsManagerForSubscription(subscriptionId)
             val parts = smsManager.divideMessage(message)
             Log.d(
                 TAG,
-                "Calling sendSms: phone=$phoneNumber event=$event parts=${parts.size} logId=$logId"
+                "Calling sendSms: phone=$phoneNumber event=$event parts=${parts.size} logId=$logId subId=$subscriptionId"
             )
             SmsSendHelper.sendMultipartTextMessageWithSentCallback(
                 context,
@@ -176,11 +197,10 @@ object AutoReplyEngine {
         ReplyMateEventEmitter.emit(map)
     }
 
-    private fun resolveSmsManager(): SmsManager {
+    private fun resolveSmsManagerForSubscription(subscriptionId: Int): SmsManager {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-            val subId = SubscriptionManager.getDefaultSmsSubscriptionId()
-            if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                return SmsManager.getSmsManagerForSubscriptionId(subId)
+            if (subscriptionId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                return SmsManager.getSmsManagerForSubscriptionId(subscriptionId)
             }
         }
         return SmsManager.getDefault()
@@ -191,16 +211,6 @@ object AutoReplyEngine {
             context,
             Manifest.permission.SEND_SMS
         ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun isEventEnabled(config: AutoReplyConfigStore, event: AutoReplyEvent): Boolean {
-        return when (event) {
-            AutoReplyEvent.CALL_ANSWERED -> config.replyOnCallAnswered()
-            AutoReplyEvent.MISSED_CALL -> config.replyOnMissedCall()
-            AutoReplyEvent.MISSED_WHATSAPP_CALL -> config.replyOnWhatsappCall()
-            AutoReplyEvent.BUSY_CALL -> config.replyOnBusyCall()
-            AutoReplyEvent.OUTGOING_CALL -> config.replyOnOutgoingCall()
-        }
     }
 
     private fun isWithinActiveWindow(config: AutoReplyConfigStore): Boolean {
@@ -235,15 +245,12 @@ object AutoReplyEngine {
         val prefs = context.getSharedPreferences(AutoReplyConfigStore.PREFS_NAME, Context.MODE_PRIVATE)
         val now = System.currentTimeMillis()
 
-        // New: per-phone last-sent timestamp (all events share this).
         val key = KEY_LAST_REPLY_AT_PHONE_PREFIX + phone
         val lastAtForPhone = prefs.getLong(key, 0L)
         if (lastAtForPhone > 0L && now - lastAtForPhone < THROTTLE_WINDOW_MS) {
             return true
         }
 
-        // Migration safety: if previous version sent recently (even for a different event),
-        // keep honoring that recent send to avoid spamming right after upgrade.
         val legacyPhone = prefs.getString(LEGACY_KEY_LAST_REPLY_PHONE, null)
         val legacyAt = prefs.getLong(LEGACY_KEY_LAST_REPLY_AT, 0L)
         if (legacyPhone == phone && legacyAt > 0L && now - legacyAt < THROTTLE_WINDOW_MS) {
@@ -259,7 +266,6 @@ object AutoReplyEngine {
         val now = System.currentTimeMillis()
         prefs.edit()
             .putLong(KEY_LAST_REPLY_AT_PHONE_PREFIX + phone, now)
-            // Also update legacy keys so older readers (if any) remain consistent.
             .putString(LEGACY_KEY_LAST_REPLY_PHONE, phone)
             .putString(LEGACY_KEY_LAST_REPLY_EVENT, "ANY")
             .putLong(LEGACY_KEY_LAST_REPLY_AT, now)

@@ -4,15 +4,21 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.app.role.RoleManager
 import android.telephony.SmsManager
 import android.telephony.SubscriptionManager
+import android.util.Log
 import com.replymate.reply_mate.activity.ActivityLogPendingStore
 import com.replymate.reply_mate.autoreply.AutoReplyConfigStore
 import com.replymate.reply_mate.autoreply.ContactFilterNativeStore
+import com.replymate.reply_mate.autoreply.StoreConfigStore
+import com.replymate.reply_mate.appstate.AppStateStore
 import com.replymate.reply_mate.events.ReplyMateEventEmitter
 import com.replymate.reply_mate.services.AutoReplyForegroundManager
 import com.replymate.reply_mate.sms.SmsSendHelper
@@ -20,6 +26,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import kotlin.concurrent.thread
 
 class MainActivity : FlutterActivity() {
     private val notificationListenerChannel = "replymate/notification_listener"
@@ -27,7 +34,26 @@ class MainActivity : FlutterActivity() {
     private val activityLogChannel = "replymate/activity_log"
     private val autoReplyEventsChannel = "replymate/auto_reply_events"
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        Log.d(TAG, "MainActivity.onCreate")
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onPostResume() {
+        super.onPostResume()
+        // Mark app ready AFTER UI is visible (persisted for receivers).
+        Handler(Looper.getMainLooper()).postDelayed({
+            try {
+                AppStateStore.setAppReady(applicationContext, true)
+                AutoReplyForegroundManager.markAppReady()
+            } catch (t: Throwable) {
+                Log.e(TAG, "markAppReady failed", t)
+            }
+        }, 1500)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        Log.d(TAG, "configureFlutterEngine: start")
         super.configureFlutterEngine(flutterEngine)
         val configStore = AutoReplyConfigStore(applicationContext)
 
@@ -70,13 +96,13 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "startCallListener" -> {
                     configStore.setEnabled(true)
-                    syncForegroundService()
+                    asyncSyncForegroundService()
                     result.success(true)
                 }
 
                 "stopCallListener" -> {
                     configStore.setEnabled(false)
-                    syncForegroundService()
+                    asyncSyncForegroundService()
                     result.success(true)
                 }
 
@@ -127,14 +153,22 @@ class MainActivity : FlutterActivity() {
                         endMinutes = endMinutes,
                         defaultReplyMessage = defaultReplyMessage
                     )
-                    syncForegroundService()
+                    asyncSyncForegroundService()
                     result.success(true)
                 }
 
                 "setAutoReplyEnabled" -> {
                     val enabled = call.argument<Boolean>("autoReplyEnabled") ?: false
                     configStore.setEnabled(enabled)
-                    syncForegroundService()
+                    asyncSyncForegroundService()
+                    result.success(true)
+                }
+
+                "setBlocked" -> {
+                    val value = call.argument<Boolean>("value") ?: false
+                    configStore.setBlocked(value)
+                    // Block must immediately disable background processing.
+                    asyncSyncForegroundService()
                     result.success(true)
                 }
 
@@ -151,7 +185,7 @@ class MainActivity : FlutterActivity() {
                         replyOnBusyCall = replyOnBusyCall,
                         replyOnOutgoingCall = replyOnOutgoingCall
                     )
-                    syncForegroundService()
+                    asyncSyncForegroundService()
                     result.success(true)
                 }
 
@@ -168,14 +202,14 @@ class MainActivity : FlutterActivity() {
                         busyCallMessage = busyCallMessage,
                         outgoingCallMessage = outgoingCallMessage
                     )
-                    syncForegroundService()
+                    asyncSyncForegroundService()
                     result.success(true)
                 }
 
                 "setThrottleEnabled" -> {
                     val enabled = call.argument<Boolean>("throttleEnabled") ?: true
                     configStore.setThrottleEnabled(enabled)
-                    syncForegroundService()
+                    asyncSyncForegroundService()
                     result.success(true)
                 }
 
@@ -249,6 +283,52 @@ class MainActivity : FlutterActivity() {
                     result.success(configStore.toMap())
                 }
 
+                "listSubscriptionInfos" -> {
+                    try {
+                        result.success(listSubscriptionInfos())
+                    } catch (e: Exception) {
+                        result.error("subscription_list_failed", e.message, null)
+                    }
+                }
+
+                "getDefaultSmsSubscriptionId" -> {
+                    try {
+                        val subId = SubscriptionManager.getDefaultSmsSubscriptionId()
+                        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                            result.success(null)
+                        } else {
+                            result.success(subId)
+                        }
+                    } catch (e: Exception) {
+                        result.error("default_sms_sub_failed", e.message, null)
+                    }
+                }
+
+                "getStoresJson" -> {
+                    try {
+                        val storeStore = StoreConfigStore(applicationContext)
+                        storeStore.ensureMigrated()
+                        result.success(storeStore.getStoresJsonOrEmpty())
+                    } catch (e: Exception) {
+                        result.error("get_stores_failed", e.message, null)
+                    }
+                }
+
+                "setStoresJson" -> {
+                    try {
+                        val json = call.argument<String>("storesJson")
+                        if (json == null) {
+                            result.error("invalid_args", "storesJson is required", null)
+                            return@setMethodCallHandler
+                        }
+                        StoreConfigStore(applicationContext).setStoresJson(json)
+                        syncForegroundService()
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("set_stores_failed", e.message, null)
+                    }
+                }
+
                 else -> result.notImplemented()
             }
         }
@@ -259,19 +339,48 @@ class MainActivity : FlutterActivity() {
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "pullPendingLogs" -> {
-                    val lines = ActivityLogPendingStore.pullLines(applicationContext)
-                    result.success(lines)
+                    try {
+                        val lines = ActivityLogPendingStore.pullLines(applicationContext)
+                        result.success(lines)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "pullPendingLogs failed", e)
+                        result.error("pull_failed", e.message, null)
+                    }
                 }
 
                 else -> result.notImplemented()
             }
         }
 
-        syncForegroundService()
+        Log.d(TAG, "configureFlutterEngine: end")
+    }
+
+    private fun asyncSyncForegroundService() {
+        // Avoid blocking Flutter engine startup / UI thread on some OEM devices.
+        thread(name = "ReplyMateFgsSync") {
+            try {
+                syncForegroundService()
+            } catch (t: Throwable) {
+                Log.e(TAG, "syncForegroundService async failed", t)
+            }
+        }
     }
 
     private fun syncForegroundService() {
         AutoReplyForegroundManager.sync(applicationContext)
+    }
+
+    private fun listSubscriptionInfos(): List<Map<String, Any?>> {
+        val sm = applicationContext.getSystemService(SubscriptionManager::class.java)
+            ?: return emptyList()
+        val list = sm.activeSubscriptionInfoList ?: return emptyList()
+        return list.map { info ->
+            mapOf(
+                "subscriptionId" to info.subscriptionId,
+                "displayName" to info.displayName?.toString().orEmpty(),
+                "simSlotIndex" to info.simSlotIndex,
+            )
+        }
     }
 
     private fun isNotificationListenerEnabled(): Boolean {
@@ -295,5 +404,9 @@ class MainActivity : FlutterActivity() {
             }
         }
         return SmsManager.getDefault()
+    }
+
+    companion object {
+        private const val TAG = "ReplyMateMainActivity"
     }
 }

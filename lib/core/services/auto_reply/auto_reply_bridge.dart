@@ -91,6 +91,13 @@ class AutoReplyBridge {
     });
   }
 
+  /// Native hard block for background execution (cached in SharedPreferences).
+  Future<void> setBlocked(bool value) async {
+    await _channel.invokeMethod('setBlocked', {
+      'value': value,
+    });
+  }
+
   Future<void> setReplyRules({
     required bool replyOnMissedCall,
     required bool replyOnIncomingCall,
@@ -121,5 +128,28 @@ class AutoReplyBridge {
       'busyCallMessage': busyCallMessage,
       'outgoingCallMessage': outgoingCallMessage,
     });
+  }
+
+  /// Active SIM subscriptions (values are real [subscriptionId]s for storage).
+  Future<List<Map<String, dynamic>>> listSubscriptionInfos() async {
+    final raw = await _channel.invokeMethod<List<dynamic>>('listSubscriptionInfos');
+    return (raw ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map<dynamic, dynamic>))
+        .toList();
+  }
+
+  Future<int?> getDefaultSmsSubscriptionId() async {
+    final raw = await _channel.invokeMethod<dynamic>('getDefaultSmsSubscriptionId');
+    if (raw is int) return raw;
+    return null;
+  }
+
+  Future<String> getStoresJson() async {
+    final s = await _channel.invokeMethod<String>('getStoresJson');
+    return s ?? '[]';
+  }
+
+  Future<void> setStoresJson(String storesJson) async {
+    await _channel.invokeMethod('setStoresJson', {'storesJson': storesJson});
   }
 }

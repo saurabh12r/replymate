@@ -23,6 +23,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
   DashboardController get controller => Get.find<DashboardController>();
 
   static const Color _primary = Color(0xFF24389C);
+  static const Color _success = Color(0xFF2E7D32);
   static const Color _primaryContainer = Color(0xFF3F51B5);
   static const Color _surface = Color(0xFFF8F9FA);
   static const Color _onSurface = Color(0xFF191C1D);
@@ -218,7 +219,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                       value: controller.autoReplyEnabled.value,
                       onChanged: (_) => controller.toggleAutoReply(),
                       activeThumbColor: Colors.white,
-                      activeTrackColor: _primary,
+                      activeTrackColor: _success,
                       inactiveThumbColor: Colors.white,
                       inactiveTrackColor: _outlineVariant,
                     ),
@@ -300,56 +301,44 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: _outlineVariant.withAlpha(100), width: 1),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.format_quote_rounded, size: 14, color: _primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Active Messages Preview',
-                          style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: _primary),
+                child: Obx(() {
+                  final name = controller.activeBusinessName.value.trim();
+                  final display = name.isEmpty ? 'No business yet' : name;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.storefront_rounded, size: 16, color: _primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Active Business',
+                            style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: _primary),
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4, left: 22),
+                        child: Text(
+                          'Default SMS SIM business, or your first active business.',
+                          style: GoogleFonts.inter(fontSize: 9, color: _onSurfaceVariant, height: 1.2),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    _MessagePreviewRow(
-                      icon: Icons.phone_missed_rounded,
-                      label: 'Missed Call',
-                      enabled: controller.replyOnMissedCall.value,
-                      message: controller.missedCallMessage.value,
-                    ),
-                    const SizedBox(height: 6),
-                    _MessagePreviewRow(
-                      icon: Icons.call_rounded,
-                      label: 'Incoming Call',
-                      enabled: controller.replyOnIncomingCall.value,
-                      message: controller.incomingCallMessage.value,
-                    ),
-                    const SizedBox(height: 6),
-                    _MessagePreviewRow(
-                      icon: Icons.forum_rounded,
-                      label: 'WhatsApp Call',
-                      enabled: controller.replyOnWhatsappCall.value,
-                      message: controller.whatsappCallMessage.value,
-                    ),
-                    const SizedBox(height: 6),
-                    _MessagePreviewRow(
-                      icon: Icons.phone_in_talk_rounded,
-                      label: 'Busy Call',
-                      enabled: controller.replyOnBusyCall.value,
-                      message: controller.busyCallMessage.value,
-                    ),
-                    const SizedBox(height: 6),
-                    _MessagePreviewRow(
-                      icon: Icons.call_made_rounded,
-                      label: 'Outgoing Call',
-                      enabled: controller.replyOnOutgoingCall.value,
-                      message: controller.outgoingCallMessage.value,
-                    ),
-                  ],
-                ),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Text(
+                          display,
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: name.isEmpty ? _onSurfaceVariant : _onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -539,51 +528,6 @@ class _StatChip extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _MessagePreviewRow extends StatelessWidget {
-  const _MessagePreviewRow({
-    required this.icon,
-    required this.label,
-    required this.enabled,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool enabled;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 14, color: const Color(0xFF454652)),
-        const SizedBox(width: 6),
-        Expanded(
-          child: RichText(
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            text: TextSpan(
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: const Color(0xFF454652),
-                height: 1.4,
-              ),
-              children: [
-                TextSpan(
-                  text: '$label: ${enabled ? 'Active' : 'Disabled'}\n',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                TextSpan(text: enabled ? message : 'Disabled'),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

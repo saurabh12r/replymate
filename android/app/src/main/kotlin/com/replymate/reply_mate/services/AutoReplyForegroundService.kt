@@ -9,9 +9,11 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.replymate.reply_mate.MainActivity
 import com.replymate.reply_mate.R
+import com.replymate.reply_mate.autoreply.AutoReplyConfigStore
 
 /**
  * Foreground service keeps the process in a higher priority tier for call/SMS receivers.
@@ -27,8 +29,18 @@ class AutoReplyForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(NOTIFICATION_ID, buildNotification())
-        return START_STICKY
+        return try {
+            if (AutoReplyConfigStore(this).getBlocked()) {
+                stopSelf(startId)
+                return START_NOT_STICKY
+            }
+            startForeground(NOTIFICATION_ID, buildNotification())
+            START_STICKY
+        } catch (t: Throwable) {
+            Log.e(TAG, "startForeground failed", t)
+            stopSelf(startId)
+            START_NOT_STICKY
+        }
     }
 
     private fun createChannel() {
@@ -66,6 +78,7 @@ class AutoReplyForegroundService : Service() {
     }
 
     companion object {
+        private const val TAG = "ReplyMateFgs"
         const val NOTIFICATION_ID = 71001
         const val CHANNEL_ID = "replymate_auto_reply_fgs"
 

@@ -16,6 +16,28 @@
         android:label="reply_mate"
         android:name=".ReplyMateApplication"
         android:icon="@mipmap/ic_launcher">
+        <!-- Disable Firebase auto-init at process start (pre-Activity). -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false" />
+
+        <!-- Remove common auto-init ContentProviders that can run before MainActivity. -->
+        <provider
+            android:name="com.google.firebase.provider.FirebaseInitProvider"
+            tools:node="remove" />
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            tools:node="remove" />
+        <provider
+            android:name="androidx.work.impl.WorkManagerInitializer"
+            tools:node="remove" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

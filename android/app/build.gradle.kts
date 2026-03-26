@@ -36,6 +36,10 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // Keep release build behavior aligned with debug (no shrinking),
+            // avoids deferred-components Play Core class issues.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

@@ -17,8 +17,18 @@ class ActivityLogChannel {
     try {
       final raw = await _channel.invokeMethod<List<dynamic>>('pullPendingLogs');
       if (raw == null) return const [];
-      return raw.cast<String>();
+      final out = <String>[];
+      for (final e in raw) {
+        if (e is String) {
+          out.add(e);
+        } else if (e != null) {
+          out.add(e.toString());
+        }
+      }
+      return out;
     } on MissingPluginException {
+      return const [];
+    } catch (_) {
       return const [];
     }
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
@@ -5,6 +7,7 @@ import '../../core/services/auth/phone_auth_service.dart';
 import '../../core/services/auth/user_repository.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/services/local/onboarding_state_service.dart';
+import '../otp/otp_controller.dart';
 
 /// LoginController
 /// Stitch Screen ID: f6417a644f80448193ad7d306fe4de25
@@ -71,27 +74,38 @@ class LoginController extends GetxController {
 
   Future<void> sendOtp() async {
     final fullPhone = '${countryCode.value}${phoneNumber.value}';
-    await _phoneAuthService.sendOtp(
-      phoneNumber: fullPhone,
-      onCodeSent: (verificationId) {
-        Get.toNamed(
-          Routes.otp,
-          arguments: {
-            'phone': fullPhone,
-            'countryCode': countryCode.value,
-            'verificationId': verificationId,
-          },
-        );
+    // Navigate immediately so the UI feels instant; OTP session id is injected
+    // as soon as Firebase returns codeSent.
+    Get.toNamed(
+      Routes.otp,
+      arguments: {
+        'phone': fullPhone,
+        'countryCode': countryCode.value,
+        'verificationId': '',
       },
-      onVerificationCompleted: (_) {
-        final route = _onboardingStateService.isFirstTimeUser
-            ? Routes.permissionsSetup
-            : Routes.dashboard;
-        Get.offAllNamed(route);
-      },
-      onFailed: (message) {
-        errorMessage.value = message;
-      },
+    );
+
+    unawaited(
+      _phoneAuthService.sendOtp(
+        phoneNumber: fullPhone,
+        onCodeSent: (verificationId) {
+          if (Get.isRegistered<OtpController>()) {
+            Get.find<OtpController>().setVerificationId(verificationId);
+          }
+        },
+        onVerificationCompleted: (_) {
+          final route = _onboardingStateService.isFirstTimeUser
+              ? Routes.permissionsSetup
+              : Routes.dashboard;
+          Get.offAllNamed(route);
+        },
+        onFailed: (message) {
+          errorMessage.value = message;
+          if (Get.isRegistered<OtpController>()) {
+            Get.find<OtpController>().errorMessage.value = message;
+          }
+        },
+      ).catchError((_) {}),
     );
   }
 

@@ -1,7 +1,7 @@
 package com.replymate.reply_mate
 
 import android.app.Application
-import com.replymate.reply_mate.services.AutoReplyForegroundManager
+import android.util.Log
 
 /**
  * Restores foreground service when the process starts (e.g. after swipe-away restart).
@@ -9,6 +9,10 @@ import com.replymate.reply_mate.services.AutoReplyForegroundManager
 class ReplyMateApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        AutoReplyForegroundManager.sync(this)
+        Log.d(TAG, "Application.onCreate")
+    }
+
+    companion object {
+        private const val TAG = "ReplyMateApp"
     }
 }

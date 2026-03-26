@@ -20,8 +20,8 @@ class OtpView extends GetView<OtpController> {
   const OtpView({super.key});
 
   // ── Design tokens ─────────────────────────────────────────────────────────
-  static const Color _primary = Color(0xFFFF8C00);
-  static const Color _primaryContainer = Color(0xFFFFA726);
+  static const Color _primary = Color(0xFF24389C);
+  static const Color _primaryContainer = Color(0xFF3F51B5);
   static const Color _surface = Color(0xFFF8F9FA);
   static const Color _surfaceContainerLow = Color(0xFFF3F4F5);
   static const Color _onSurface = Color(0xFF191C1D);
@@ -120,7 +120,7 @@ class OtpView extends GetView<OtpController> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFF57C00), _primary, _primaryContainer],
+          colors: [Color(0xFF1A2980), _primary, _primaryContainer],
           stops: [0.0, 0.5, 1.0],
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
@@ -217,8 +217,9 @@ class OtpView extends GetView<OtpController> {
 
   Widget _buildVerifyButton() {
     return Obx(() {
+      final hasSession = controller.hasVerificationId.value;
       final enabled =
-          controller.isValid.value && !controller.isLoading.value;
+          hasSession && controller.isValid.value && !controller.isLoading.value;
       return GestureDetector(
         onTap: enabled ? controller.verifyOtp : null,
         child: AnimatedContainer(
@@ -256,7 +257,7 @@ class OtpView extends GetView<OtpController> {
                     ),
                   )
                 : Text(
-                    'Verify OTP',
+                    hasSession ? 'Verify OTP' : 'Sending OTP…',
                     style: GoogleFonts.inter(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -343,7 +344,7 @@ class _OtpBox extends StatefulWidget {
 }
 
 class _OtpBoxState extends State<_OtpBox> {
-  static const Color _primary = Color(0xFFFF8C00);
+  static const Color _primary = Color(0xFF24389C);
   static const Color _surfaceLowest = Color(0xFFFFFFFF);
   static const Color _outlineVariant = Color(0xFFC5C5D4);
   static const Color _onSurface = Color(0xFF191C1D);

@@ -19,6 +19,7 @@ class OtpController extends GetxController {
   // ── Arguments from Login ──────────────────────────────────────────────────
   late final String phoneNumber;
   String verificationId = '';
+  final RxBool hasVerificationId = false.obs;
 
   // ── OTP input (6 boxes) ───────────────────────────────────────────────────
   static const int otpLength = 6;
@@ -45,7 +46,14 @@ class OtpController extends GetxController {
     final args = Get.arguments as Map<String, dynamic>?;
     phoneNumber = args?['phone'] ?? '';
     verificationId = args?['verificationId'] ?? '';
+    hasVerificationId.value = verificationId.isNotEmpty;
     _startResendTimer();
+  }
+
+  void setVerificationId(String id) {
+    if (id.trim().isEmpty) return;
+    verificationId = id.trim();
+    hasVerificationId.value = true;
   }
 
   @override
@@ -137,7 +145,7 @@ class OtpController extends GetxController {
       await _phoneAuthService.sendOtp(
         phoneNumber: phoneNumber,
         onCodeSent: (newVerificationId) {
-          verificationId = newVerificationId;
+          setVerificationId(newVerificationId);
         },
         onVerificationCompleted: (_) {
           _navigatePostLogin();

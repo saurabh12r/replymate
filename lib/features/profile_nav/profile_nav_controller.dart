@@ -26,11 +26,6 @@ class ProfileNavController extends GetxController {
   final Rxn<UserModel> profile = Rxn<UserModel>();
   StreamSubscription<UserModel?>? _profileSubscription;
 
-  // ── Quick stats ────────────────────────────────────────────────────────────
-  final RxString smartReplies = '1.2k'.obs;
-  final RxString accuracyRate = '98%'.obs;
-  final RxString activeDays = '42'.obs;
-
   // ── Logout state ───────────────────────────────────────────────────────────
   final RxBool isLoggingOut = false.obs;
 

@@ -12,9 +12,19 @@ import androidx.core.content.ContextCompat
 import com.replymate.reply_mate.autoreply.AutoReplyConfigStore
 import com.replymate.reply_mate.autoreply.AutoReplyEngine
 import com.replymate.reply_mate.autoreply.AutoReplyEvent
+import com.replymate.reply_mate.autoreply.CallSubscriptionResolver
 
 class CallStateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        try {
+            onReceiveImpl(context, intent)
+        } catch (t: Throwable) {
+            Log.e(TAG, "onReceive failed", t)
+        }
+    }
+
+    private fun onReceiveImpl(context: Context, intent: Intent) {
+        if (AutoReplyConfigStore(context).getBlocked()) return
         if (intent.action != TelephonyManager.ACTION_PHONE_STATE_CHANGED) return
         val configStore = AutoReplyConfigStore(context)
         if (!configStore.isEnabledFailSafe()) {
@@ -25,21 +35,26 @@ class CallStateReceiver : BroadcastReceiver() {
         val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE) ?: return
         val prevState = lastState
         val incoming = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+        val intentSub = CallSubscriptionResolver.subscriptionIdFromPhoneStateIntent(intent)
+        if (intentSub != null) {
+            lastCallSubscriptionId = intentSub
+        }
         Log.d(
             TAG,
-            "Call state event: state=$state prevState=$prevState incoming=$incoming wasRinging=$wasRinging wasOffhook=$wasOffhook isOnCall=$isOnCall"
+            "Call state event: state=$state prevState=$prevState incoming=$incoming " +
+                "wasRinging=$wasRinging wasOffhook=$wasOffhook isOnCall=$isOnCall intentSub=$intentSub lastSub=$lastCallSubscriptionId"
         )
         when (state) {
             TelephonyManager.EXTRA_STATE_RINGING -> {
-                // If user is already on a call, a second incoming call is the "busy" condition.
                 if (isOnCall) {
                     Log.d(TAG, "Busy condition: RINGING while already OFFHOOK → BUSY_CALL")
+                    val sub = intentSub ?: lastCallSubscriptionId
                     AutoReplyEngine.handleEvent(
                         context,
                         AutoReplyEvent.BUSY_CALL,
-                        incoming
+                        incoming,
+                        sub
                     )
-                    // Don't treat this as a normal ringing flow (avoids sending missed/incoming later).
                     wasRinging = false
                     wasOffhook = false
                     incomingNumber = null
@@ -53,15 +68,17 @@ class CallStateReceiver : BroadcastReceiver() {
 
             TelephonyManager.EXTRA_STATE_OFFHOOK -> {
                 isOnCall = true
-                // Outgoing call detection (best-effort): OFFHOOK while previous state was IDLE
-                // and we were not in a ringing flow.
                 if (prevState == TelephonyManager.EXTRA_STATE_IDLE && !wasRinging) {
-                    val outgoingNumber = getLastOutgoingNumber(context)
-                    Log.d(TAG, "Detected OUTGOING call flow (IDLE->OFFHOOK) number=$outgoingNumber")
+                    val outgoing = CallSubscriptionResolver.getLatestOutgoingCall(context)
+                    Log.d(
+                        TAG,
+                        "Detected OUTGOING call flow (IDLE->OFFHOOK) number=${outgoing?.number} sub=${outgoing?.subscriptionId}"
+                    )
                     AutoReplyEngine.handleEvent(
                         context,
                         AutoReplyEvent.OUTGOING_CALL,
-                        outgoingNumber
+                        outgoing?.number,
+                        outgoing?.subscriptionId
                     )
                 }
                 if (!incoming.isNullOrBlank()) {
@@ -77,9 +94,11 @@ class CallStateReceiver : BroadcastReceiver() {
                 isOnCall = false
                 val lastCall = getLastCallInfo(context)
                 val resolvedNumber = incomingNumber ?: incoming ?: lastCall?.number
+                val subForIdle = lastCallSubscriptionId
+                    ?: CallSubscriptionResolver.getLatestCallLogSubscriptionId(context)
                 Log.d(
                     TAG,
-                    "Transition: IDLE resolvedNumber=$resolvedNumber lastType=${lastCall?.type}"
+                    "Transition: IDLE resolvedNumber=$resolvedNumber lastType=${lastCall?.type} subForIdle=$subForIdle"
                 )
                 val answeredByLogFallback = wasRinging &&
                     !wasOffhook &&
@@ -89,56 +108,25 @@ class CallStateReceiver : BroadcastReceiver() {
                     AutoReplyEngine.handleEvent(
                         context,
                         AutoReplyEvent.CALL_ANSWERED,
-                        resolvedNumber
+                        resolvedNumber,
+                        subForIdle
                     )
                 } else if (wasRinging) {
                     Log.d(TAG, "Detected MISSED call flow (RINGING->IDLE)")
                     AutoReplyEngine.handleEvent(
                         context,
                         AutoReplyEvent.MISSED_CALL,
-                        resolvedNumber
+                        resolvedNumber,
+                        subForIdle
                     )
                 }
                 wasRinging = false
                 wasOffhook = false
                 incomingNumber = null
+                lastCallSubscriptionId = null
             }
         }
         lastState = state
-    }
-
-    private fun getLastOutgoingNumber(context: Context): String? {
-        val hasPermission = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.READ_CALL_LOG
-        ) == PackageManager.PERMISSION_GRANTED
-        if (!hasPermission) {
-            Log.d(TAG, "Outgoing lookup skipped: READ_CALL_LOG not granted")
-            return null
-        }
-        return try {
-            val cursor = context.contentResolver.query(
-                CallLog.Calls.CONTENT_URI,
-                arrayOf(CallLog.Calls.NUMBER, CallLog.Calls.TYPE, CallLog.Calls.DATE),
-                "${CallLog.Calls.TYPE}=?",
-                arrayOf(CallLog.Calls.OUTGOING_TYPE.toString()),
-                "${CallLog.Calls.DATE} DESC"
-            )
-            cursor?.use {
-                if (it.moveToFirst()) {
-                    val numberIdx = it.getColumnIndex(CallLog.Calls.NUMBER)
-                    if (numberIdx >= 0) {
-                        val number = it.getString(numberIdx)
-                        Log.d(TAG, "Outgoing lookup number=$number")
-                        return number
-                    }
-                }
-            }
-            null
-        } catch (e: Exception) {
-            Log.e(TAG, "Outgoing lookup failed", e)
-            null
-        }
     }
 
     private fun getLastCallInfo(context: Context): LastCallInfo? {
@@ -186,6 +174,7 @@ class CallStateReceiver : BroadcastReceiver() {
         private var incomingNumber: String? = null
         private var isOnCall: Boolean = false
         private var lastState: String = TelephonyManager.EXTRA_STATE_IDLE
+        private var lastCallSubscriptionId: Int? = null
     }
 
     data class LastCallInfo(

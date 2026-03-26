@@ -6,6 +6,20 @@ import org.json.JSONObject
 class AutoReplyConfigStore(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    fun setBlocked(value: Boolean) {
+        prefs.edit()
+            .putBoolean(KEY_IS_BLOCKED, value)
+            .apply()
+    }
+
+    fun getBlocked(): Boolean {
+        return try {
+            prefs.getBoolean(KEY_IS_BLOCKED, false)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun setEnabled(enabled: Boolean) {
         // Write both new and legacy keys to keep backward compatibility.
         prefs.edit()
@@ -208,6 +222,7 @@ class AutoReplyConfigStore(context: Context) {
 
     companion object {
         const val PREFS_NAME = "replymate_auto_reply_prefs"
+        const val KEY_IS_BLOCKED = "is_blocked"
         const val KEY_MASTER_ENABLED = "auto_reply_enabled"
         const val KEY_AUTO_REPLY_ENABLED = "autoReplyEnabled"
         const val LEGACY_KEY_AUTO_REPLY_ENABLED = "auto_reply_enabled"

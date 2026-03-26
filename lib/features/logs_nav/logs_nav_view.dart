@@ -151,7 +151,7 @@ class LogsNavView extends GetView<LogsNavController> {
       color: _surface,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: LogFilterType.values.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
@@ -162,8 +162,8 @@ class LogsNavView extends GetView<LogsNavController> {
               onTap: () => controller.setDateFilter(f),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: selected ? _primaryContainer : Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -214,7 +214,7 @@ class LogsNavView extends GetView<LogsNavController> {
       color: _surface,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: FilterType.values.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
@@ -225,8 +225,8 @@ class LogsNavView extends GetView<LogsNavController> {
               onTap: () => controller.setFilter(f),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: selected ? _primary : Colors.white,
                   borderRadius: BorderRadius.circular(20),

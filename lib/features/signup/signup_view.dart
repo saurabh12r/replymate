@@ -10,8 +10,8 @@ import 'widgets/auth_text_field.dart';
 /// Stitch Screen ID: CUSTOM_SIGNUP_01
 class SignupView extends GetView<SignupController> {
   const SignupView({super.key});
-  static const Color _primary = Color(0xFFFF8C00);
-  static const Color _primaryContainer = Color(0xFFFFA726);
+  static const Color _primary = Color(0xFF24389C);
+  static const Color _primaryContainer = Color(0xFF3F51B5);
 
   @override
   Widget build(BuildContext context) {
@@ -141,7 +141,7 @@ class SignupView extends GetView<SignupController> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFF57C00), _primary, _primaryContainer],
+          colors: [Color(0xFF1A2980), _primary, _primaryContainer],
           stops: [0.0, 0.5, 1.0],
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),

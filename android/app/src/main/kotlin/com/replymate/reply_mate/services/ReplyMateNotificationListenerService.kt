@@ -3,6 +3,7 @@ package com.replymate.reply_mate.services
 import android.net.Uri
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.telephony.SubscriptionManager
 import android.util.Log
 import com.replymate.reply_mate.autoreply.AutoReplyConfigStore
 import com.replymate.reply_mate.autoreply.AutoReplyEngine
@@ -10,48 +11,64 @@ import com.replymate.reply_mate.autoreply.AutoReplyEvent
 
 class ReplyMateNotificationListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        // Global master guard: if OFF/unset/error, do not process anything.
-        if (!AutoReplyConfigStore(this).isEnabledFailSafe()) {
-            Log.d(TAG, "Blocked notification event: autoReplyEnabled=false")
-            return
-        }
+        try {
+            // Hard block: native must immediately stop all processing when blocked.
+            if (AutoReplyConfigStore(this).getBlocked()) return
+            // Global master guard: if OFF/unset/error, do not process anything.
+            if (!AutoReplyConfigStore(this).isEnabledFailSafe()) {
+                Log.d(TAG, "Blocked notification event: autoReplyEnabled=false")
+                return
+            }
 
-        val pkg = sbn.packageName ?: return
-        if (pkg != WHATSAPP && pkg != WHATSAPP_BUSINESS) {
-            return
-        }
+            val pkg = sbn.packageName ?: return
+            if (pkg != WHATSAPP && pkg != WHATSAPP_BUSINESS) {
+                return
+            }
 
-        val extras = sbn.notification.extras
-        val title = extras?.getString("android.title").orEmpty()
-        val text = extras?.getString("android.text").orEmpty()
-        Log.d(TAG, "WhatsApp notification received: pkg=$pkg title=$title text=$text")
-        val lowerText = text.lowercase()
-        val lowerTitle = title.lowercase()
+            val extras = sbn.notification.extras
+            val title = extras?.getString("android.title").orEmpty()
+            val text = extras?.getString("android.text").orEmpty()
+            Log.d(TAG, "WhatsApp notification received: pkg=$pkg title=$title text=$text")
+            val lowerText = text.lowercase()
+            val lowerTitle = title.lowercase()
 
-        val isMissedWhatsAppCall = MISSED_CALL_KEYWORDS.any {
-            lowerText.contains(it) || lowerTitle.contains(it)
-        }
-        if (!isMissedWhatsAppCall) {
-            Log.d(TAG, "Skipped: notification is not a missed WhatsApp call")
-            return
-        }
+            val isMissedWhatsAppCall = MISSED_CALL_KEYWORDS.any {
+                lowerText.contains(it) || lowerTitle.contains(it)
+            }
+            if (!isMissedWhatsAppCall) {
+                Log.d(TAG, "Skipped: notification is not a missed WhatsApp call")
+                return
+            }
 
-        val phoneFromPeople = extractPhoneFromPeople(extras?.getStringArray("android.people"))
-        val phoneFromText = extractPhoneFromText("$title $text")
-        val phoneNumber = phoneFromPeople ?: phoneFromText
-        Log.d(
-            TAG,
-            "Phone extraction: fromPeople=$phoneFromPeople fromText=$phoneFromText resolved=$phoneNumber"
-        )
-        AutoReplyEngine.handleEvent(
-            this,
-            AutoReplyEvent.MISSED_WHATSAPP_CALL,
-            phoneNumber
-        )
+            val phoneFromPeople =
+                extractPhoneFromPeople(extras?.getStringArray("android.people"))
+            val phoneFromText = extractPhoneFromText("$title $text")
+            val phoneNumber = phoneFromPeople ?: phoneFromText
+            Log.d(
+                TAG,
+                "Phone extraction: fromPeople=$phoneFromPeople fromText=$phoneFromText resolved=$phoneNumber"
+            )
+
+            val subId = SubscriptionManager.getDefaultSmsSubscriptionId()
+            val resolvedSub =
+                if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) subId else null
+            AutoReplyEngine.handleEvent(
+                this,
+                AutoReplyEvent.MISSED_WHATSAPP_CALL,
+                phoneNumber,
+                resolvedSub
+            )
+        } catch (t: Throwable) {
+            Log.e(TAG, "onNotificationPosted failed", t)
+        }
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        Log.d(TAG, "Notification removed from: ${sbn.packageName}")
+        try {
+            Log.d(TAG, "Notification removed from: ${sbn.packageName}")
+        } catch (_: Throwable) {
+            // Best effort only.
+        }
     }
 
     private fun extractPhoneFromPeople(people: Array<String>?): String? {

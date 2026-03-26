@@ -22,6 +22,7 @@ class SmsConfigView extends GetView<SmsConfigController> {
 
   // ── Design tokens ─────────────────────────────────────────────────────────
   static const Color _primary = Color(0xFF24389C);
+  static const Color _success = Color(0xFF2E7D32);
   static const Color _primaryContainer = Color(0xFF3F51B5);
   static const Color _surface = Color(0xFFF8F9FA);
   static const Color _onSurface = Color(0xFF191C1D);
@@ -291,8 +292,8 @@ class SmsConfigView extends GetView<SmsConfigController> {
               Switch(
                 value: autoReplyEnabled.value,
                 onChanged: (v) => controller.autoReplyEnabled.value = v,
-                activeThumbColor: _primary,
-                activeTrackColor: _primary.withAlpha(80),
+                activeThumbColor: _success,
+                activeTrackColor: _success.withAlpha(80),
               ),
             ],
           ),
@@ -621,7 +622,7 @@ class _ToggleRow extends StatelessWidget {
   final bool isFirst;
   final bool isLast;
 
-  static const Color _primary = Color(0xFF24389C);
+  static const Color _success = Color(0xFF2E7D32);
   static const Color _onSurface = Color(0xFF191C1D);
   static const Color _onSurfaceVariant = Color(0xFF454652);
 
@@ -668,8 +669,8 @@ class _ToggleRow extends StatelessWidget {
             Obx(() => Switch(
                   value: value.value,
                   onChanged: (v) => value.value = v,
-                  activeThumbColor: _primary,
-                  activeTrackColor: _primary.withAlpha(80),
+                  activeThumbColor: _success,
+                  activeTrackColor: _success.withAlpha(80),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 )),
           ],

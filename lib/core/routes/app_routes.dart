@@ -7,8 +7,6 @@ abstract class Routes {
   static const otp = '/otp';
   static const permissionsSetup = '/permissions-setup';
   static const permissionError = '/permission-error';
-  static const notificationGuide = '/notification-guide';
-  static const smsConfig = '/sms-config';
   static const dashboard = '/dashboard';
   // Deep-push screens (above dashboard)
   static const reports = '/reports';

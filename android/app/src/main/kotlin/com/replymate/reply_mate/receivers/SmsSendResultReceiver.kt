@@ -12,6 +12,14 @@ import com.replymate.reply_mate.activity.ActivityLogPendingStore
  */
 class SmsSendResultReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        try {
+            onReceiveImpl(context, intent)
+        } catch (t: Throwable) {
+            Log.e(TAG, "onReceive failed", t)
+        }
+    }
+
+    private fun onReceiveImpl(context: Context, intent: Intent) {
         val logId = intent.getStringExtra(EXTRA_LOG_ID)
         if (!logId.isNullOrEmpty()) {
             val ok = resultCode == Activity.RESULT_OK
