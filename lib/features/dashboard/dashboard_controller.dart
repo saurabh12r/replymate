@@ -37,8 +37,7 @@ class DashboardController extends GetxController {
       "Sorry, I missed your call. I'll call you back.".obs;
   final RxString incomingCallMessage =
       "I'm currently busy, will get back to you soon.".obs;
-  final RxString whatsappCallMessage =
-      'Sorry, I missed your WhatsApp call.'.obs;
+  final RxString whatsappCallMessage = ''.obs;
   final RxString busyCallMessage =
       "I'm on another call right now. I'll call you back.".obs;
   final RxString rejectedCallMessage =
@@ -49,7 +48,7 @@ class DashboardController extends GetxController {
       "I tried calling you but couldn't reach you. Please call me back when free.".obs;
   final RxBool replyOnMissedCall = true.obs;
   final RxBool replyOnIncomingCall = false.obs;
-  final RxBool replyOnWhatsappCall = true.obs;
+  final RxBool replyOnWhatsappCall = false.obs;
   final RxBool replyOnBusyCall = false.obs;
   final RxBool replyOnRejectedCall = false.obs;
   final RxBool replyOnOutgoingAnswered = false.obs;

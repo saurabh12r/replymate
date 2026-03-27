@@ -261,19 +261,10 @@ class _StoreEditViewState extends State<StoreEditView> {
               children: [
                 _toggle('Missed call', _tMissed, (v) => setState(() => _tMissed = v), icon: Icons.call_missed_rounded),
                 _toggle('Incoming call (answered)', _tIncoming, (v) => setState(() => _tIncoming = v), icon: Icons.call_rounded),
-                _toggle('WhatsApp missed call', _tWa, (v) => setState(() => _tWa = v), icon: Icons.chat_bubble_rounded),
                 _toggle('Busy (call waiting)', _tBusy, (v) => setState(() => _tBusy = v), icon: Icons.call_end_rounded),
                 _toggle('Rejected call', _tRejected, (v) => setState(() => _tRejected = v), icon: Icons.phone_disabled_rounded),
                 _toggle('Outgoing (answered)', _tOutAns, (v) => setState(() => _tOutAns = v), icon: Icons.call_made_rounded),
                 _toggle('Outgoing (no answer)', _tOutUnans, (v) => setState(() => _tOutUnans = v), icon: Icons.phone_callback_rounded),
-                const SizedBox(height: 6),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'WhatsApp replies use your default SIM business.',
-                    style: GoogleFonts.inter(fontSize: 12, color: _onSurfaceVariant),
-                  ),
-                ),
               ],
             ),
           ),

@@ -382,14 +382,6 @@ class SmsConfigView extends GetView<SmsConfigController> {
           ),
           Divider(height: 1, color: _outlineVariant.withAlpha(80), indent: 64),
           _ToggleRow(
-            icon: Icons.forum_rounded,
-            iconColor: const Color(0xFF25D366),
-            title: 'Reply on WhatsApp Call',
-            subtitle: 'Auto-reply on WhatsApp missed calls',
-            value: controller.replyOnWhatsappCall,
-          ),
-          Divider(height: 1, color: _outlineVariant.withAlpha(80), indent: 64),
-          _ToggleRow(
             icon: Icons.call_made_rounded,
             iconColor: const Color(0xFF1565C0),
             title: 'Reply on Outgoing (Answered)',

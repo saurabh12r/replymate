@@ -25,7 +25,7 @@ class AutoReplyBridge {
     required bool autoReplyEnabled,
     required bool replyOnCallAnswered,
     required bool replyOnMissedCall,
-    required bool replyOnWhatsappCall,
+    bool replyOnWhatsappCall = false,
     required bool replyOnBusyCall,
     required bool replyOnRejectedCall,
     required bool replyOnOutgoingAnswered,
@@ -39,7 +39,7 @@ class AutoReplyBridge {
       'autoReplyEnabled': autoReplyEnabled,
       'replyOnCallAnswered': replyOnCallAnswered,
       'replyOnMissedCall': replyOnMissedCall,
-      'replyOnWhatsappCall': replyOnWhatsappCall,
+      'replyOnWhatsappCall': false,
       'replyOnBusyCall': replyOnBusyCall,
       'replyOnRejectedCall': replyOnRejectedCall,
       'replyOnOutgoingAnswered': replyOnOutgoingAnswered,
@@ -105,7 +105,6 @@ class AutoReplyBridge {
   Future<void> setReplyRules({
     required bool replyOnMissedCall,
     required bool replyOnIncomingCall,
-    required bool replyOnWhatsappCall,
     required bool replyOnBusyCall,
     required bool replyOnRejectedCall,
     required bool replyOnOutgoingAnswered,
@@ -114,7 +113,7 @@ class AutoReplyBridge {
     await _channel.invokeMethod('setReplyRules', {
       'replyOnMissedCall': replyOnMissedCall,
       'replyOnIncomingCall': replyOnIncomingCall,
-      'replyOnWhatsappCall': replyOnWhatsappCall,
+      'replyOnWhatsappCall': false,
       'replyOnBusyCall': replyOnBusyCall,
       'replyOnRejectedCall': replyOnRejectedCall,
       'replyOnOutgoingAnswered': replyOnOutgoingAnswered,
@@ -125,7 +124,7 @@ class AutoReplyBridge {
   Future<void> setCustomMessages({
     required String missedCallMessage,
     required String incomingCallMessage,
-    required String whatsappCallMessage,
+    String whatsappCallMessage = '',
     required String busyCallMessage,
     required String rejectedCallMessage,
     required String outgoingAnsweredMessage,

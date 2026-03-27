@@ -1,6 +1,5 @@
 package com.replymate.reply_mate
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -29,7 +28,6 @@ import io.flutter.plugin.common.MethodChannel
 import kotlin.concurrent.thread
 
 class MainActivity : FlutterActivity() {
-    private val notificationListenerChannel = "replymate/notification_listener"
     private val autoReplyChannel = "replymate/auto_reply"
     private val activityLogChannel = "replymate/activity_log"
     private val autoReplyEventsChannel = "replymate/auto_reply_events"
@@ -69,26 +67,6 @@ class MainActivity : FlutterActivity() {
                 ReplyMateEventEmitter.attach(null)
             }
         })
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            notificationListenerChannel
-        ).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "openNotificationListenerSettings" -> {
-                    val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    startActivity(intent)
-                    result.success(true)
-                }
-
-                "isNotificationListenerEnabled" -> {
-                    result.success(isNotificationListenerEnabled())
-                }
-
-                else -> result.notImplemented()
-            }
-        }
-
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             autoReplyChannel
@@ -392,19 +370,6 @@ class MainActivity : FlutterActivity() {
                 "displayName" to info.displayName?.toString().orEmpty(),
                 "simSlotIndex" to info.simSlotIndex,
             )
-        }
-    }
-
-    private fun isNotificationListenerEnabled(): Boolean {
-        val packageName = applicationContext.packageName
-        val flat = Settings.Secure.getString(
-            contentResolver,
-            "enabled_notification_listeners"
-        ) ?: return false
-        val names = flat.split(":")
-        return names.any {
-            val componentName = ComponentName.unflattenFromString(it)
-            componentName?.packageName == packageName
         }
     }
 

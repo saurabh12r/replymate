@@ -222,8 +222,7 @@ class SettingsView extends GetView<SettingsController> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Add businesses, link each to a SIM, and set messages. '
-                        'WhatsApp replies use your default SIM business.',
+                        'Add businesses, link each to a SIM, and set custom reply messages.',
                         style: GoogleFonts.inter(fontSize: 11, color: _onSurfaceVariant),
                       ),
                     ],
@@ -348,10 +347,6 @@ class SettingsView extends GetView<SettingsController> {
                     _permStatusRow(
                       'Notifications',
                       controller.permPostNotificationsGranted.value,
-                    ),
-                    _permStatusRow(
-                      'Notification listener',
-                      controller.permNotificationListenerGranted.value,
                     ),
                   ],
                 ),

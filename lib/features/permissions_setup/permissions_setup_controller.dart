@@ -22,7 +22,6 @@ class PermissionsSetupController extends GetxController
   final RxBool isCallLogsGranted = false.obs;
   final RxBool isNotificationGranted = false.obs;
   final RxBool isContactsGranted = false.obs;
-  final RxBool isNotificationListenerGranted = false.obs;
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final Rx<AppPermissionType?> permanentlyDeniedPermission =
@@ -32,8 +31,7 @@ class PermissionsSetupController extends GetxController
       isSmsGranted.value &&
       isCallLogsGranted.value &&
       isNotificationGranted.value &&
-      isContactsGranted.value &&
-      isNotificationListenerGranted.value;
+      isContactsGranted.value;
 
   @override
   void onInit() {
@@ -74,10 +72,6 @@ class PermissionsSetupController extends GetxController
     await _requestPermission(AppPermissionType.contacts);
   }
 
-  Future<void> requestNotificationListener() async {
-    await _requestPermission(AppPermissionType.notificationListener);
-  }
-
   Future<void> openAppSettingsForPermanentlyDenied() async {
     await openAppSettings();
   }
@@ -90,8 +84,6 @@ class PermissionsSetupController extends GetxController
         await _permissionService.isGranted(AppPermissionType.notifications);
     isContactsGranted.value =
         await _permissionService.isGranted(AppPermissionType.contacts);
-    isNotificationListenerGranted.value =
-        await _permissionService.isGranted(AppPermissionType.notificationListener);
   }
 
   Future<void> requestAllPermissions() async {
@@ -99,7 +91,6 @@ class PermissionsSetupController extends GetxController
     await requestCallLogs();
     await requestNotification();
     await requestContacts();
-    await requestNotificationListener();
   }
 
   // ── Continue — requests/checks permissions and navigates forward ──────────

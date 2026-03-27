@@ -145,18 +145,6 @@ class PermissionsSetupView extends GetView<PermissionsSetupController> {
                               isGranted: controller.isContactsGranted.value,
                               onTap: controller.requestContacts,
                             ),
-                            const SizedBox(height: 12),
-                            _PermissionCard(
-                              icon: Icons.notification_important_rounded,
-                              iconBg: _secondaryContainer.withAlpha(80),
-                              iconColor: _secondary,
-                              title: 'Notification Access (Special)',
-                              description:
-                                  'Detect WhatsApp missed calls via notifications. Only WhatsApp call alerts are read.',
-                              isGranted:
-                                  controller.isNotificationListenerGranted.value,
-                              onTap: controller.requestNotificationListener,
-                            ),
                           ],
                         )),
 

@@ -28,7 +28,6 @@ class SettingsController extends GetxController {
   final RxBool permSmsGranted = false.obs;
   final RxBool permPhoneCallLogsGranted = false.obs;
   final RxBool permPostNotificationsGranted = false.obs;
-  final RxBool permNotificationListenerGranted = false.obs;
 
   final RxBool autoReplyEnabled = true.obs;
   final RxBool throttleEnabled = true.obs;
@@ -60,8 +59,6 @@ class SettingsController extends GetxController {
         await _permissionService.isGranted(AppPermissionType.callLogs);
     permPostNotificationsGranted.value =
         await _permissionService.isGranted(AppPermissionType.notifications);
-    permNotificationListenerGranted.value = await _permissionService
-        .isGranted(AppPermissionType.notificationListener);
   }
 
   Future<void> _loadPersistedRules() async {
@@ -180,14 +177,10 @@ class SettingsController extends GetxController {
     if (!permPostNotificationsGranted.value) {
       await _permissionService.request(AppPermissionType.notifications);
     }
-    if (!permNotificationListenerGranted.value) {
-      await _permissionService.request(AppPermissionType.notificationListener);
-    }
     await refreshPermissionStatus();
     final ok = permSmsGranted.value &&
         permPhoneCallLogsGranted.value &&
-        permPostNotificationsGranted.value &&
-        permNotificationListenerGranted.value;
+        permPostNotificationsGranted.value;
     Get.snackbar(
       'Permissions',
       ok

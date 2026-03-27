@@ -20,7 +20,6 @@ class SmsConfigController extends GetxController {
   final RxBool autoReplyEnabled = true.obs;
   final RxBool replyOnCall = false.obs;
   final RxBool replyOnMissedCall = true.obs;
-  final RxBool replyOnWhatsappCall = true.obs;
   final RxBool replyOnBusyCall = false.obs;
   final RxBool replyOnRejectedCall = false.obs;
   final RxBool replyOnOutgoingAnswered = false.obs;
@@ -97,7 +96,6 @@ class SmsConfigController extends GetxController {
       autoReplyEnabled.value = config['autoReplyEnabled'] as bool? ?? true;
       replyOnCall.value = config['replyOnCallAnswered'] as bool? ?? false;
       replyOnMissedCall.value = config['replyOnMissedCall'] as bool? ?? true;
-      replyOnWhatsappCall.value = config['replyOnWhatsappCall'] as bool? ?? true;
       replyOnBusyCall.value = config['replyOnBusyCall'] as bool? ?? false;
       replyOnRejectedCall.value = config['replyOnRejectedCall'] as bool? ?? false;
       replyOnOutgoingAnswered.value = config['replyOnOutgoingAnswered'] as bool? ?? false;
@@ -124,7 +122,7 @@ class SmsConfigController extends GetxController {
         autoReplyEnabled: autoReplyEnabled.value,
         replyOnCallAnswered: replyOnCall.value,
         replyOnMissedCall: replyOnMissedCall.value,
-        replyOnWhatsappCall: replyOnWhatsappCall.value,
+        replyOnWhatsappCall: false,
         replyOnBusyCall: replyOnBusyCall.value,
         replyOnRejectedCall: replyOnRejectedCall.value,
         replyOnOutgoingAnswered: replyOnOutgoingAnswered.value,
