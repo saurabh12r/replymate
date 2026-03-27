@@ -203,4 +203,75 @@ class SettingsController extends GetxController {
   }
 
   void navigateToLogout() => Get.toNamed(Routes.logoutConfirm);
+
+  Future<void> confirmDeleteAccount() async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This will permanently delete your account and all associated data. '
+          'This action cannot be undone.\n\n'
+          'Are you sure you want to proceed?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFBA1A1A),
+            ),
+            child: const Text('Delete Account'),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await _userRepository.deleteUserByUid(user.uid);
+        await user.delete();
+      }
+      Get.offAllNamed(Routes.login);
+      Get.snackbar(
+        'Account Deleted',
+        'Your account and data have been removed.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFF006A6A),
+        colorText: Colors.white,
+        borderRadius: 14,
+        margin: const EdgeInsets.all(16),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        Get.snackbar(
+          'Re-authentication Required',
+          'Please sign out, sign back in, and try again.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: const Color(0xFFBA1A1A),
+          colorText: Colors.white,
+          borderRadius: 14,
+          margin: const EdgeInsets.all(16),
+        );
+      } else {
+        rethrow;
+      }
+    } catch (_) {
+      Get.snackbar(
+        'Error',
+        'Unable to delete account. Please try again later.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFFBA1A1A),
+        colorText: Colors.white,
+        borderRadius: 14,
+        margin: const EdgeInsets.all(16),
+      );
+    }
+  }
 }

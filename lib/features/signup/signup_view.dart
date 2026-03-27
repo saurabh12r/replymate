@@ -1,7 +1,9 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import 'signup_controller.dart';
 import 'widgets/auth_text_field.dart';
@@ -118,7 +120,9 @@ class SignupView extends GetView<SignupController> {
                       keyboardType: TextInputType.emailAddress,
                     ),
                     _buildError(controller.emailError),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+                    _buildPolicyConsent(),
+                    const SizedBox(height: 20),
                     _buildSignupButton(),
                     const SizedBox(height: 20),
                     _buildLoginLink(),
@@ -212,6 +216,48 @@ class SignupView extends GetView<SignupController> {
         ),
       );
     });
+  }
+
+  Widget _buildPolicyConsent() {
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: GoogleFonts.inter(fontSize: 12, color: AppTheme.onSurfaceVariant, height: 1.5),
+        children: [
+          const TextSpan(text: 'By registering, you agree to our '),
+          TextSpan(
+            text: 'Terms of Service',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: _primary,
+              fontWeight: FontWeight.w600,
+              decoration: TextDecoration.underline,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () => launchUrl(
+                    Uri.parse('https://replymate.app/terms'),
+                    mode: LaunchMode.externalApplication,
+                  ),
+          ),
+          const TextSpan(text: ' and '),
+          TextSpan(
+            text: 'Privacy Policy',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: _primary,
+              fontWeight: FontWeight.w600,
+              decoration: TextDecoration.underline,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () => launchUrl(
+                    Uri.parse('https://replymate.app/privacy'),
+                    mode: LaunchMode.externalApplication,
+                  ),
+          ),
+          const TextSpan(text: '.'),
+        ],
+      ),
+    );
   }
 
   Widget _buildSignupButton() {

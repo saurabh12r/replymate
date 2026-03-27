@@ -31,15 +31,30 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            // Point these at your real keystore before publishing.
+            // You can also load values from a local `key.properties` file.
+            storeFile = file(System.getenv("REPLYMATE_KEYSTORE_PATH") ?: "keystore/release.jks")
+            storePassword = System.getenv("REPLYMATE_KEYSTORE_PASSWORD") ?: ""
+            keyAlias = System.getenv("REPLYMATE_KEY_ALIAS") ?: "replymate"
+            keyPassword = System.getenv("REPLYMATE_KEY_PASSWORD") ?: ""
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
+        // Keep debug as-is for development
+        getByName("debug") {
             signingConfig = signingConfigs.getByName("debug")
-            // Keep release build behavior aligned with debug (no shrinking),
-            // avoids deferred-components Play Core class issues.
-            isMinifyEnabled = false
-            isShrinkResources = false
         }
     }
 }

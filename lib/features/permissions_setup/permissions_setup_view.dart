@@ -65,6 +65,39 @@ class PermissionsSetupView extends GetView<PermissionsSetupController> {
 
                     const SizedBox(height: 24),
 
+                    // ── Data disclosure banner ───────────────────────────
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3E0),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: const Color(0xFFFFB74D).withAlpha(80),
+                            width: 1),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.info_outline_rounded,
+                              size: 18, color: Color(0xFFE65100)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'ReplyMate accesses SMS, call log, and notification data solely to detect incoming calls and send automated SMS replies on your behalf. This data is processed locally on your device and is never shared with third parties. Standard carrier SMS charges may apply.',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: const Color(0xFFBF360C),
+                                height: 1.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
                     // ── Permission cards ──────────────────────────────────
                     Obx(() => Column(
                           children: [
@@ -74,7 +107,7 @@ class PermissionsSetupView extends GetView<PermissionsSetupController> {
                               iconColor: _primary,
                               title: 'SMS Access',
                               description:
-                                  'READ_SMS, SEND_SMS and RECEIVE_SMS for smart replies.',
+                                  'Send automated SMS replies to callers on your behalf. SMS data stays on your device.',
                               isGranted: controller.isSmsGranted.value,
                               onTap: controller.requestSms,
                             ),
@@ -85,7 +118,7 @@ class PermissionsSetupView extends GetView<PermissionsSetupController> {
                               iconColor: _primary,
                               title: 'Call Logs',
                               description:
-                                  'READ_CALL_LOG and READ_PHONE_STATE to detect call context.',
+                                  'Detect missed, incoming, and rejected calls to trigger auto-replies. Call data is not uploaded.',
                               isGranted: controller.isCallLogsGranted.value,
                               onTap: controller.requestCallLogs,
                             ),
@@ -96,7 +129,7 @@ class PermissionsSetupView extends GetView<PermissionsSetupController> {
                               iconColor: _secondary,
                               title: 'Notifications',
                               description:
-                                  'POST_NOTIFICATIONS (Android 13+) for alerts and visibility.',
+                                  'Show a persistent notification while auto-reply is active (Android 13+).',
                               isGranted:
                                   controller.isNotificationGranted.value,
                               onTap: controller.requestNotification,
@@ -108,7 +141,7 @@ class PermissionsSetupView extends GetView<PermissionsSetupController> {
                               iconColor: _secondary,
                               title: 'Contacts',
                               description:
-                                  'READ_CONTACTS for personalized auto-replies.',
+                                  'Match caller names for contact-based filtering rules. Contact data stays on device.',
                               isGranted: controller.isContactsGranted.value,
                               onTap: controller.requestContacts,
                             ),
@@ -119,7 +152,7 @@ class PermissionsSetupView extends GetView<PermissionsSetupController> {
                               iconColor: _secondary,
                               title: 'Notification Access (Special)',
                               description:
-                                  'Enable Notification Listener access in system settings.',
+                                  'Detect WhatsApp missed calls via notifications. Only WhatsApp call alerts are read.',
                               isGranted:
                                   controller.isNotificationListenerGranted.value,
                               onTap: controller.requestNotificationListener,

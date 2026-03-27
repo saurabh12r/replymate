@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../stores/stores_list_view.dart';
 import '../stores/stores_controller.dart';
 import 'settings_controller.dart';
@@ -73,6 +74,8 @@ class SettingsView extends GetView<SettingsController> {
                         _buildBusinessesCard(context),
                         const SizedBox(height: 16),
                         _buildPermissionsSection(),
+                        const SizedBox(height: 16),
+                        _buildLegalSection(),
                         const SizedBox(height: 16),
                         _buildDangerZone(),
                         const SizedBox(height: 24),
@@ -392,6 +395,89 @@ class SettingsView extends GetView<SettingsController> {
     );
   }
 
+  // ── Legal section ──────────────────────────────────────────────────────────
+  Widget _buildLegalSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12, offset: const Offset(0, 3))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(
+              children: [
+                const Icon(Icons.description_rounded, size: 16, color: _primary),
+                const SizedBox(width: 8),
+                Text('Legal', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w800, color: _primary, letterSpacing: 0.3)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          _buildLegalRow(
+            icon: Icons.privacy_tip_outlined,
+            title: 'Privacy Policy',
+            subtitle: 'How we handle your data',
+            onTap: () => _launchUrl('https://replymate.app/privacy'),
+          ),
+          _sectionDivider(),
+          _buildLegalRow(
+            icon: Icons.article_outlined,
+            title: 'Terms of Service',
+            subtitle: 'Usage terms and conditions',
+            onTap: () => _launchUrl('https://replymate.app/terms'),
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegalRow({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(color: _primary.withAlpha(15), borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, size: 17, color: _primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: _onSurface)),
+                  Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: _onSurfaceVariant)),
+                ],
+              ),
+            ),
+            Icon(Icons.open_in_new_rounded, size: 16, color: _primary.withAlpha(160)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   // ── Danger zone ────────────────────────────────────────────────────────────
   Widget _buildDangerZone() {
     return Container(
@@ -434,6 +520,35 @@ class SettingsView extends GetView<SettingsController> {
                       children: [
                         Text('Sign Out', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: _error)),
                         Text('You will be returned to the login screen', style: GoogleFonts.inter(fontSize: 11, color: _error.withAlpha(160))),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, size: 20, color: _error.withAlpha(120)),
+                ],
+              ),
+            ),
+          ),
+          _sectionDivider(),
+          InkWell(
+            onTap: controller.confirmDeleteAccount,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(color: _error.withAlpha(15), borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.delete_forever_rounded, size: 18, color: _error),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Delete Account', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: _error)),
+                        Text('Permanently remove your account and data', style: GoogleFonts.inter(fontSize: 11, color: _error.withAlpha(160))),
                       ],
                     ),
                   ),

@@ -67,6 +67,38 @@ class SmsConfigView extends GetView<SmsConfigController> {
                     ),
                     const SizedBox(height: 24),
 
+                    // ── SMS fee notice ──────────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF8E1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: const Color(0xFFFFD54F).withAlpha(100),
+                            width: 1),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.info_outline_rounded,
+                              size: 16, color: Color(0xFFF57F17)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Auto-replies are sent as standard SMS. Normal carrier messaging rates apply.',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: const Color(0xFFF57F17),
+                                height: 1.4,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
                     // ── Master Auto-Reply toggle ──────────────────────────
                     _buildMasterToggle(),
                     const SizedBox(height: 16),

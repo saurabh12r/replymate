@@ -66,6 +66,10 @@ class UserRepository {
     });
   }
 
+  Future<void> deleteUserByUid(String uid) async {
+    await _users.doc(uid).delete();
+  }
+
   Future<void> ensureUserDocumentForUid({
     required String uid,
     String? phone,
