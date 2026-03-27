@@ -17,8 +17,8 @@ import 'core/services/blocked/is_blocked_sync_service.dart';
 import 'core/services/local/onboarding_state_service.dart';
 import 'firebase_options.dart';
 
-void main() {
-  runZonedGuarded(() {
+Future<void> main() async {
+  runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
     assert(() {
@@ -37,7 +37,25 @@ void main() {
       return true;
     };
 
-    // IMPORTANT: reach first frame fast to avoid native splash hangs.
+    // Initialize Firebase BEFORE runApp so auth is available immediately.
+    try {
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
+    } catch (e, st) {
+      assert(() {
+        debugPrint('ReplyMate: Firebase.initializeApp failed: $e\n$st');
+        return true;
+      }());
+      try {
+        if (Firebase.apps.isEmpty) {
+          await Firebase.initializeApp();
+        }
+      } catch (_) {}
+    }
+
     // Register critical Get services synchronously so bindings/controllers can
     // resolve dependencies immediately (prevents release white-screen).
     if (!Get.isRegistered<OnboardingStateService>()) {
@@ -66,28 +84,7 @@ Future<void> _postRunAppBootstrap() async {
     return true;
   }());
 
-  try {
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    }
-  } catch (e, st) {
-    assert(() {
-      debugPrint('ReplyMate: Firebase.initializeApp (options) failed: $e\n$st');
-      return true;
-    }());
-    try {
-      if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp();
-      }
-    } catch (e2, st2) {
-      assert(() {
-        debugPrint('ReplyMate: Firebase.initializeApp (fallback) failed: $e2\n$st2');
-        return true;
-      }());
-    }
-  }
+  // Firebase is already initialized in main() before runApp().
 
   try {
     await Hive.initFlutter();
