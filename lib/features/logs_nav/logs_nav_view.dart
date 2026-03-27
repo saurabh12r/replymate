@@ -270,6 +270,8 @@ class LogsNavView extends GetView<LogsNavController> {
         return 'Missed';
       case FilterType.whatsapp:
         return 'WhatsApp';
+      case FilterType.outgoing:
+        return 'Outgoing';
     }
   }
 
@@ -499,8 +501,12 @@ class ActivityLogCard extends StatelessWidget {
         return const Color(0xFF25D366);
       case EventType.busyCall:
         return const Color(0xFFE65100);
-      case EventType.outgoingCall:
+      case EventType.rejectedCall:
+        return const Color(0xFFD32F2F);
+      case EventType.outgoingAnswered:
         return const Color(0xFF1565C0);
+      case EventType.outgoingUnanswered:
+        return const Color(0xFF6A1B9A);
     }
   }
 
@@ -514,8 +520,12 @@ class ActivityLogCard extends StatelessWidget {
         return Icons.chat_rounded;
       case EventType.busyCall:
         return Icons.phone_in_talk_rounded;
-      case EventType.outgoingCall:
+      case EventType.rejectedCall:
+        return Icons.phone_disabled_rounded;
+      case EventType.outgoingAnswered:
         return Icons.call_made_rounded;
+      case EventType.outgoingUnanswered:
+        return Icons.phone_missed_rounded;
     }
   }
 
@@ -679,8 +689,12 @@ class ActivityLogCard extends StatelessWidget {
         return 'WhatsApp';
       case EventType.busyCall:
         return 'Busy';
-      case EventType.outgoingCall:
-        return 'Outgoing';
+      case EventType.rejectedCall:
+        return 'Rejected';
+      case EventType.outgoingAnswered:
+        return 'Outgoing (Answered)';
+      case EventType.outgoingUnanswered:
+        return 'Outgoing (No Answer)';
     }
   }
 }

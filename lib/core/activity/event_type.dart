@@ -4,5 +4,7 @@ enum EventType {
   missedCall,
   whatsappCall,
   busyCall,
-  outgoingCall,
+  rejectedCall,
+  outgoingAnswered,
+  outgoingUnanswered,
 }

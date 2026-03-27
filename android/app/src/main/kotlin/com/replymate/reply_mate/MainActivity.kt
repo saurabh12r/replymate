@@ -134,7 +134,9 @@ class MainActivity : FlutterActivity() {
                     val replyOnMissedCall = call.argument<Boolean>("replyOnMissedCall") ?: true
                     val replyOnWhatsappCall = call.argument<Boolean>("replyOnWhatsappCall") ?: true
                     val replyOnBusyCall = call.argument<Boolean>("replyOnBusyCall") ?: false
-                    val replyOnOutgoingCall = call.argument<Boolean>("replyOnOutgoingCall") ?: false
+                    val replyOnRejectedCall = call.argument<Boolean>("replyOnRejectedCall") ?: false
+                    val replyOnOutgoingAnswered = call.argument<Boolean>("replyOnOutgoingAnswered") ?: false
+                    val replyOnOutgoingUnanswered = call.argument<Boolean>("replyOnOutgoingUnanswered") ?: false
                     val useTimeRange = call.argument<Boolean>("useTimeRange") ?: false
                     val startMinutes = call.argument<Int>("startMinutes") ?: 540
                     val endMinutes = call.argument<Int>("endMinutes") ?: 1260
@@ -147,7 +149,9 @@ class MainActivity : FlutterActivity() {
                         replyOnMissedCall = replyOnMissedCall,
                         replyOnWhatsappCall = replyOnWhatsappCall,
                         replyOnBusyCall = replyOnBusyCall,
-                        replyOnOutgoingCall = replyOnOutgoingCall,
+                        replyOnRejectedCall = replyOnRejectedCall,
+                        replyOnOutgoingAnswered = replyOnOutgoingAnswered,
+                        replyOnOutgoingUnanswered = replyOnOutgoingUnanswered,
                         useTimeRange = useTimeRange,
                         startMinutes = startMinutes,
                         endMinutes = endMinutes,
@@ -177,13 +181,17 @@ class MainActivity : FlutterActivity() {
                     val replyOnIncomingCall = call.argument<Boolean>("replyOnIncomingCall") ?: false
                     val replyOnWhatsappCall = call.argument<Boolean>("replyOnWhatsappCall") ?: true
                     val replyOnBusyCall = call.argument<Boolean>("replyOnBusyCall") ?: false
-                    val replyOnOutgoingCall = call.argument<Boolean>("replyOnOutgoingCall") ?: false
+                    val replyOnRejectedCall = call.argument<Boolean>("replyOnRejectedCall") ?: false
+                    val replyOnOutgoingAnswered = call.argument<Boolean>("replyOnOutgoingAnswered") ?: false
+                    val replyOnOutgoingUnanswered = call.argument<Boolean>("replyOnOutgoingUnanswered") ?: false
                     configStore.setReplyRules(
                         replyOnMissedCall = replyOnMissedCall,
                         replyOnIncomingCall = replyOnIncomingCall,
                         replyOnWhatsappCall = replyOnWhatsappCall,
                         replyOnBusyCall = replyOnBusyCall,
-                        replyOnOutgoingCall = replyOnOutgoingCall
+                        replyOnRejectedCall = replyOnRejectedCall,
+                        replyOnOutgoingAnswered = replyOnOutgoingAnswered,
+                        replyOnOutgoingUnanswered = replyOnOutgoingUnanswered
                     )
                     asyncSyncForegroundService()
                     result.success(true)
@@ -194,13 +202,17 @@ class MainActivity : FlutterActivity() {
                     val incomingCallMessage = call.argument<String>("incomingCallMessage").orEmpty()
                     val whatsappCallMessage = call.argument<String>("whatsappCallMessage").orEmpty()
                     val busyCallMessage = call.argument<String>("busyCallMessage").orEmpty()
-                    val outgoingCallMessage = call.argument<String>("outgoingCallMessage").orEmpty()
+                    val rejectedCallMessage = call.argument<String>("rejectedCallMessage").orEmpty()
+                    val outgoingAnsweredMessage = call.argument<String>("outgoingAnsweredMessage").orEmpty()
+                    val outgoingUnansweredMessage = call.argument<String>("outgoingUnansweredMessage").orEmpty()
                     configStore.setCustomMessages(
                         missedCallMessage = missedCallMessage,
                         incomingCallMessage = incomingCallMessage,
                         whatsappCallMessage = whatsappCallMessage,
                         busyCallMessage = busyCallMessage,
-                        outgoingCallMessage = outgoingCallMessage
+                        rejectedCallMessage = rejectedCallMessage,
+                        outgoingAnsweredMessage = outgoingAnsweredMessage,
+                        outgoingUnansweredMessage = outgoingUnansweredMessage
                     )
                     asyncSyncForegroundService()
                     result.success(true)

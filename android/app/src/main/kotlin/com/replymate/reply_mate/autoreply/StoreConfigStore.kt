@@ -18,10 +18,8 @@ class StoreConfigStore(private val context: Context) {
         if (prefs.getBoolean(KEY_MIGRATED, false)) return
         val existing = prefs.getString(KEY_STORES_JSON, null)
         if (!existing.isNullOrBlank() && existing != "{}" && existing != "[]") {
-            // Be defensive: only mark as migrated if the stored JSON is at least parseable.
-            // Otherwise a later parse may fail and silently result in no active stores.
             try {
-                JSONArray(existing) // validate JSON syntax
+                JSONArray(existing)
                 prefs.edit().putBoolean(KEY_MIGRATED, true).apply()
                 return
             } catch (_: Exception) {
@@ -55,7 +53,7 @@ class StoreConfigStore(private val context: Context) {
     /**
      * Saves stores. Enforces **one subscriptionId → one store**: if two stores share
      * the same non-null subscription id, the **last** store in the list keeps the SIM;
-     * earlier stores have `subscriptionId` cleared (matches “reassign to new store”).
+     * earlier stores have `subscriptionId` cleared (matches "reassign to new store").
      */
     fun setStoresJson(json: String) {
         val list = parseStores(json)
@@ -99,7 +97,9 @@ class StoreConfigStore(private val context: Context) {
             val msgIncoming = legacy.incomingCallMessage()
             val msgWa = legacy.whatsappCallMessage()
             val msgBusy = legacy.busyCallMessage()
-            val msgOut = legacy.outgoingCallMessage()
+            val msgRejected = legacy.rejectedCallMessage()
+            val msgOutAns = legacy.outgoingAnsweredMessage()
+            val msgOutUnans = legacy.outgoingUnansweredMessage()
 
             val templates = mutableListOf<StoreTemplate>()
             val idToTemplate = mutableMapOf<String, String>()
@@ -117,7 +117,9 @@ class StoreConfigStore(private val context: Context) {
                 StoreEventKeys.INCOMING_CALL to idFor(msgIncoming),
                 StoreEventKeys.MISSED_WHATSAPP to idFor(msgWa),
                 StoreEventKeys.BUSY_CALL to idFor(msgBusy),
-                StoreEventKeys.OUTGOING_CALL to idFor(msgOut),
+                StoreEventKeys.REJECTED_CALL to idFor(msgRejected),
+                StoreEventKeys.OUTGOING_ANSWERED to idFor(msgOutAns),
+                StoreEventKeys.OUTGOING_UNANSWERED to idFor(msgOutUnans),
             )
 
             return StoreRecord(
@@ -129,7 +131,9 @@ class StoreConfigStore(private val context: Context) {
                 replyIncomingCall = legacy.replyOnCallAnswered(),
                 replyWhatsappCall = legacy.replyOnWhatsappCall(),
                 replyBusyCall = legacy.replyOnBusyCall(),
-                replyOutgoingCall = legacy.replyOnOutgoingCall(),
+                replyRejectedCall = legacy.replyOnRejectedCall(),
+                replyOutgoingAnswered = legacy.replyOnOutgoingAnswered(),
+                replyOutgoingUnanswered = legacy.replyOnOutgoingUnanswered(),
                 templates = templates,
                 eventTemplateIds = eventMap,
             )
@@ -174,6 +178,17 @@ class StoreConfigStore(private val context: Context) {
                     eventMap[k] = em.optString(k, "")
                 }
             }
+            // Migrate legacy "outgoing_call" key to the two new keys if present.
+            val legacyOutgoing = eventMap.remove(StoreEventKeys.LEGACY_OUTGOING_CALL)
+            if (legacyOutgoing != null && legacyOutgoing.isNotEmpty()) {
+                if (!eventMap.containsKey(StoreEventKeys.OUTGOING_ANSWERED)) {
+                    eventMap[StoreEventKeys.OUTGOING_ANSWERED] = legacyOutgoing
+                }
+                if (!eventMap.containsKey(StoreEventKeys.OUTGOING_UNANSWERED)) {
+                    eventMap[StoreEventKeys.OUTGOING_UNANSWERED] = legacyOutgoing
+                }
+            }
+
             val sub = if (o.has("subscriptionId") && !o.isNull("subscriptionId")) {
                 o.optInt("subscriptionId", SubscriptionManager.INVALID_SUBSCRIPTION_ID).takeIf {
                     it != SubscriptionManager.INVALID_SUBSCRIPTION_ID
@@ -181,6 +196,10 @@ class StoreConfigStore(private val context: Context) {
             } else {
                 null
             }
+
+            // Legacy field migration: old "replyOutgoingCall" → both new outgoing toggles.
+            val legacyOutToggle = o.optBoolean("replyOutgoingCall", false)
+
             return StoreRecord(
                 id = o.optString("id", UUID.randomUUID().toString()),
                 name = o.optString("name", "Business"),
@@ -190,7 +209,9 @@ class StoreConfigStore(private val context: Context) {
                 replyIncomingCall = o.optBoolean("replyIncomingCall", false),
                 replyWhatsappCall = o.optBoolean("replyWhatsappCall", true),
                 replyBusyCall = o.optBoolean("replyBusyCall", false),
-                replyOutgoingCall = o.optBoolean("replyOutgoingCall", false),
+                replyRejectedCall = o.optBoolean("replyRejectedCall", false),
+                replyOutgoingAnswered = o.optBoolean("replyOutgoingAnswered", legacyOutToggle),
+                replyOutgoingUnanswered = o.optBoolean("replyOutgoingUnanswered", legacyOutToggle),
                 templates = templates,
                 eventTemplateIds = eventMap,
             )
@@ -218,7 +239,9 @@ class StoreConfigStore(private val context: Context) {
             o.put("replyIncomingCall", s.replyIncomingCall)
             o.put("replyWhatsappCall", s.replyWhatsappCall)
             o.put("replyBusyCall", s.replyBusyCall)
-            o.put("replyOutgoingCall", s.replyOutgoingCall)
+            o.put("replyRejectedCall", s.replyRejectedCall)
+            o.put("replyOutgoingAnswered", s.replyOutgoingAnswered)
+            o.put("replyOutgoingUnanswered", s.replyOutgoingUnanswered)
             val ta = JSONArray()
             for (t in s.templates) {
                 val to = JSONObject()

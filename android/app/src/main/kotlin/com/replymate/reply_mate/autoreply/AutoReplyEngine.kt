@@ -21,7 +21,9 @@ enum class AutoReplyEvent {
     MISSED_CALL,
     MISSED_WHATSAPP_CALL,
     BUSY_CALL,
-    OUTGOING_CALL
+    REJECTED_CALL,
+    OUTGOING_ANSWERED,
+    OUTGOING_UNANSWERED,
 }
 
 object AutoReplyEngine {
@@ -189,7 +191,9 @@ object AutoReplyEngine {
             AutoReplyEvent.MISSED_CALL -> ActivityEventType.MISSED_CALL
             AutoReplyEvent.MISSED_WHATSAPP_CALL -> ActivityEventType.WHATSAPP_CALL
             AutoReplyEvent.BUSY_CALL -> ActivityEventType.BUSY_CALL
-            AutoReplyEvent.OUTGOING_CALL -> ActivityEventType.OUTGOING_CALL
+            AutoReplyEvent.REJECTED_CALL -> ActivityEventType.REJECTED_CALL
+            AutoReplyEvent.OUTGOING_ANSWERED -> ActivityEventType.OUTGOING_ANSWERED
+            AutoReplyEvent.OUTGOING_UNANSWERED -> ActivityEventType.OUTGOING_UNANSWERED
         }
     }
 

@@ -21,6 +21,10 @@ class SmsConfigController extends GetxController {
   final RxBool replyOnCall = false.obs;
   final RxBool replyOnMissedCall = true.obs;
   final RxBool replyOnWhatsappCall = true.obs;
+  final RxBool replyOnBusyCall = false.obs;
+  final RxBool replyOnRejectedCall = false.obs;
+  final RxBool replyOnOutgoingAnswered = false.obs;
+  final RxBool replyOnOutgoingUnanswered = false.obs;
 
   // ── Time range ─────────────────────────────────────────────────────────────
   final Rx<TimeOfDay> startTime = const TimeOfDay(hour: 9, minute: 0).obs;
@@ -94,6 +98,10 @@ class SmsConfigController extends GetxController {
       replyOnCall.value = config['replyOnCallAnswered'] as bool? ?? false;
       replyOnMissedCall.value = config['replyOnMissedCall'] as bool? ?? true;
       replyOnWhatsappCall.value = config['replyOnWhatsappCall'] as bool? ?? true;
+      replyOnBusyCall.value = config['replyOnBusyCall'] as bool? ?? false;
+      replyOnRejectedCall.value = config['replyOnRejectedCall'] as bool? ?? false;
+      replyOnOutgoingAnswered.value = config['replyOnOutgoingAnswered'] as bool? ?? false;
+      replyOnOutgoingUnanswered.value = config['replyOnOutgoingUnanswered'] as bool? ?? false;
       useTimeRange.value = config['useTimeRange'] as bool? ?? false;
       startTime.value = _minutesToTime(config['startMinutes'] as int? ?? 540);
       endTime.value = _minutesToTime(config['endMinutes'] as int? ?? 1260);
@@ -117,8 +125,10 @@ class SmsConfigController extends GetxController {
         replyOnCallAnswered: replyOnCall.value,
         replyOnMissedCall: replyOnMissedCall.value,
         replyOnWhatsappCall: replyOnWhatsappCall.value,
-        replyOnBusyCall: false,
-        replyOnOutgoingCall: false,
+        replyOnBusyCall: replyOnBusyCall.value,
+        replyOnRejectedCall: replyOnRejectedCall.value,
+        replyOnOutgoingAnswered: replyOnOutgoingAnswered.value,
+        replyOnOutgoingUnanswered: replyOnOutgoingUnanswered.value,
         useTimeRange: useTimeRange.value,
         startMinutes: _timeToMinutes(startTime.value),
         endMinutes: _timeToMinutes(endTime.value),

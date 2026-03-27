@@ -21,7 +21,6 @@ class AutoReplyConfigStore(context: Context) {
     }
 
     fun setEnabled(enabled: Boolean) {
-        // Write both new and legacy keys to keep backward compatibility.
         prefs.edit()
             .putBoolean(KEY_MASTER_ENABLED, enabled)
             .putBoolean(KEY_AUTO_REPLY_ENABLED, enabled)
@@ -34,14 +33,18 @@ class AutoReplyConfigStore(context: Context) {
         replyOnIncomingCall: Boolean,
         replyOnWhatsappCall: Boolean,
         replyOnBusyCall: Boolean,
-        replyOnOutgoingCall: Boolean
+        replyOnRejectedCall: Boolean,
+        replyOnOutgoingAnswered: Boolean,
+        replyOnOutgoingUnanswered: Boolean
     ) {
         prefs.edit()
             .putBoolean(KEY_REPLY_MISSED_CALL, replyOnMissedCall)
             .putBoolean(KEY_REPLY_INCOMING_CALL, replyOnIncomingCall)
             .putBoolean(KEY_REPLY_WHATSAPP_CALL, replyOnWhatsappCall)
             .putBoolean(KEY_REPLY_BUSY_CALL, replyOnBusyCall)
-            .putBoolean(KEY_REPLY_OUTGOING_CALL, replyOnOutgoingCall)
+            .putBoolean(KEY_REPLY_REJECTED_CALL, replyOnRejectedCall)
+            .putBoolean(KEY_REPLY_OUTGOING_ANSWERED, replyOnOutgoingAnswered)
+            .putBoolean(KEY_REPLY_OUTGOING_UNANSWERED, replyOnOutgoingUnanswered)
             .putBoolean(KEY_REPLY_ON_MISSED_CALL, replyOnMissedCall)
             .putBoolean(KEY_REPLY_ON_CALL_ANSWERED, replyOnIncomingCall)
             .putBoolean(KEY_REPLY_ON_WHATSAPP_CALL, replyOnWhatsappCall)
@@ -53,14 +56,18 @@ class AutoReplyConfigStore(context: Context) {
         incomingCallMessage: String,
         whatsappCallMessage: String,
         busyCallMessage: String,
-        outgoingCallMessage: String
+        rejectedCallMessage: String,
+        outgoingAnsweredMessage: String,
+        outgoingUnansweredMessage: String
     ) {
         prefs.edit()
             .putString(KEY_MSG_MISSED_CALL, normalizeMessage(missedCallMessage, DEFAULT_MISSED_CALL_MESSAGE))
             .putString(KEY_MSG_INCOMING_CALL, normalizeMessage(incomingCallMessage, DEFAULT_INCOMING_CALL_MESSAGE))
             .putString(KEY_MSG_WHATSAPP_CALL, normalizeMessage(whatsappCallMessage, DEFAULT_WHATSAPP_CALL_MESSAGE))
             .putString(KEY_MSG_BUSY_CALL, normalizeMessage(busyCallMessage, DEFAULT_BUSY_CALL_MESSAGE))
-            .putString(KEY_MSG_OUTGOING_CALL, normalizeMessage(outgoingCallMessage, DEFAULT_OUTGOING_CALL_MESSAGE))
+            .putString(KEY_MSG_REJECTED_CALL, normalizeMessage(rejectedCallMessage, DEFAULT_REJECTED_CALL_MESSAGE))
+            .putString(KEY_MSG_OUTGOING_ANSWERED, normalizeMessage(outgoingAnsweredMessage, DEFAULT_OUTGOING_ANSWERED_MESSAGE))
+            .putString(KEY_MSG_OUTGOING_UNANSWERED, normalizeMessage(outgoingUnansweredMessage, DEFAULT_OUTGOING_UNANSWERED_MESSAGE))
             .apply()
     }
 
@@ -70,7 +77,9 @@ class AutoReplyConfigStore(context: Context) {
         replyOnMissedCall: Boolean,
         replyOnWhatsappCall: Boolean,
         replyOnBusyCall: Boolean,
-        replyOnOutgoingCall: Boolean,
+        replyOnRejectedCall: Boolean,
+        replyOnOutgoingAnswered: Boolean,
+        replyOnOutgoingUnanswered: Boolean,
         useTimeRange: Boolean,
         startMinutes: Int,
         endMinutes: Int,
@@ -87,7 +96,9 @@ class AutoReplyConfigStore(context: Context) {
             .putBoolean(KEY_REPLY_MISSED_CALL, replyOnMissedCall)
             .putBoolean(KEY_REPLY_WHATSAPP_CALL, replyOnWhatsappCall)
             .putBoolean(KEY_REPLY_BUSY_CALL, replyOnBusyCall)
-            .putBoolean(KEY_REPLY_OUTGOING_CALL, replyOnOutgoingCall)
+            .putBoolean(KEY_REPLY_REJECTED_CALL, replyOnRejectedCall)
+            .putBoolean(KEY_REPLY_OUTGOING_ANSWERED, replyOnOutgoingAnswered)
+            .putBoolean(KEY_REPLY_OUTGOING_UNANSWERED, replyOnOutgoingUnanswered)
             .putBoolean(KEY_USE_TIME_RANGE, useTimeRange)
             .putInt(KEY_START_MINUTES, startMinutes)
             .putInt(KEY_END_MINUTES, endMinutes)
@@ -101,7 +112,6 @@ class AutoReplyConfigStore(context: Context) {
         } else if (prefs.contains(KEY_AUTO_REPLY_ENABLED)) {
             prefs.getBoolean(KEY_AUTO_REPLY_ENABLED, true)
         } else {
-            // Fallback for older installs.
             prefs.getBoolean(LEGACY_KEY_AUTO_REPLY_ENABLED, true)
         }
     }
@@ -119,13 +129,17 @@ class AutoReplyConfigStore(context: Context) {
     fun getReplyIncomingCall(): Boolean = replyOnCallAnswered()
     fun getReplyWhatsappCall(): Boolean = replyOnWhatsappCall()
     fun getReplyBusyCall(): Boolean = replyOnBusyCall()
-    fun getReplyOutgoingCall(): Boolean = replyOnOutgoingCall()
+    fun getReplyRejectedCall(): Boolean = replyOnRejectedCall()
+    fun getReplyOutgoingAnswered(): Boolean = replyOnOutgoingAnswered()
+    fun getReplyOutgoingUnanswered(): Boolean = replyOnOutgoingUnanswered()
     fun getThrottleEnabled(): Boolean = throttleEnabled()
     fun getMissedCallMessage(): String = missedCallMessage()
     fun getIncomingCallMessage(): String = incomingCallMessage()
     fun getWhatsappCallMessage(): String = whatsappCallMessage()
     fun getBusyCallMessage(): String = busyCallMessage()
-    fun getOutgoingCallMessage(): String = outgoingCallMessage()
+    fun getRejectedCallMessage(): String = rejectedCallMessage()
+    fun getOutgoingAnsweredMessage(): String = outgoingAnsweredMessage()
+    fun getOutgoingUnansweredMessage(): String = outgoingUnansweredMessage()
 
     fun replyOnCallAnswered(): Boolean {
         return if (prefs.contains(KEY_REPLY_INCOMING_CALL)) {
@@ -153,9 +167,18 @@ class AutoReplyConfigStore(context: Context) {
         return prefs.getBoolean(KEY_REPLY_BUSY_CALL, false)
     }
 
-    fun replyOnOutgoingCall(): Boolean {
-        return prefs.getBoolean(KEY_REPLY_OUTGOING_CALL, false)
+    fun replyOnRejectedCall(): Boolean {
+        return prefs.getBoolean(KEY_REPLY_REJECTED_CALL, false)
     }
+
+    fun replyOnOutgoingAnswered(): Boolean {
+        return prefs.getBoolean(KEY_REPLY_OUTGOING_ANSWERED, false)
+    }
+
+    fun replyOnOutgoingUnanswered(): Boolean {
+        return prefs.getBoolean(KEY_REPLY_OUTGOING_UNANSWERED, false)
+    }
+
     fun useTimeRange(): Boolean = prefs.getBoolean(KEY_USE_TIME_RANGE, false)
     fun startMinutes(): Int = prefs.getInt(KEY_START_MINUTES, 9 * 60)
     fun endMinutes(): Int = prefs.getInt(KEY_END_MINUTES, 21 * 60)
@@ -182,9 +205,19 @@ class AutoReplyConfigStore(context: Context) {
         return if (value.isNullOrEmpty()) DEFAULT_BUSY_CALL_MESSAGE else value
     }
 
-    fun outgoingCallMessage(): String {
-        val value = prefs.getString(KEY_MSG_OUTGOING_CALL, DEFAULT_OUTGOING_CALL_MESSAGE)?.trim()
-        return if (value.isNullOrEmpty()) DEFAULT_OUTGOING_CALL_MESSAGE else value
+    fun rejectedCallMessage(): String {
+        val value = prefs.getString(KEY_MSG_REJECTED_CALL, DEFAULT_REJECTED_CALL_MESSAGE)?.trim()
+        return if (value.isNullOrEmpty()) DEFAULT_REJECTED_CALL_MESSAGE else value
+    }
+
+    fun outgoingAnsweredMessage(): String {
+        val value = prefs.getString(KEY_MSG_OUTGOING_ANSWERED, DEFAULT_OUTGOING_ANSWERED_MESSAGE)?.trim()
+        return if (value.isNullOrEmpty()) DEFAULT_OUTGOING_ANSWERED_MESSAGE else value
+    }
+
+    fun outgoingUnansweredMessage(): String {
+        val value = prefs.getString(KEY_MSG_OUTGOING_UNANSWERED, DEFAULT_OUTGOING_UNANSWERED_MESSAGE)?.trim()
+        return if (value.isNullOrEmpty()) DEFAULT_OUTGOING_UNANSWERED_MESSAGE else value
     }
 
     fun messageForEvent(event: AutoReplyEvent): String {
@@ -193,7 +226,9 @@ class AutoReplyConfigStore(context: Context) {
             AutoReplyEvent.CALL_ANSWERED -> incomingCallMessage()
             AutoReplyEvent.MISSED_WHATSAPP_CALL -> whatsappCallMessage()
             AutoReplyEvent.BUSY_CALL -> busyCallMessage()
-            AutoReplyEvent.OUTGOING_CALL -> outgoingCallMessage()
+            AutoReplyEvent.REJECTED_CALL -> rejectedCallMessage()
+            AutoReplyEvent.OUTGOING_ANSWERED -> outgoingAnsweredMessage()
+            AutoReplyEvent.OUTGOING_UNANSWERED -> outgoingUnansweredMessage()
         }
     }
 
@@ -204,13 +239,17 @@ class AutoReplyConfigStore(context: Context) {
             "replyOnMissedCall" to replyOnMissedCall(),
             "replyOnWhatsappCall" to replyOnWhatsappCall(),
             "replyOnBusyCall" to replyOnBusyCall(),
-            "replyOnOutgoingCall" to replyOnOutgoingCall(),
+            "replyOnRejectedCall" to replyOnRejectedCall(),
+            "replyOnOutgoingAnswered" to replyOnOutgoingAnswered(),
+            "replyOnOutgoingUnanswered" to replyOnOutgoingUnanswered(),
             "throttleEnabled" to throttleEnabled(),
             "msgMissedCall" to missedCallMessage(),
             "msgIncomingCall" to incomingCallMessage(),
             "msgWhatsappCall" to whatsappCallMessage(),
             "msgBusyCall" to busyCallMessage(),
-            "msgOutgoingCall" to outgoingCallMessage(),
+            "msgRejectedCall" to rejectedCallMessage(),
+            "msgOutgoingAnswered" to outgoingAnsweredMessage(),
+            "msgOutgoingUnanswered" to outgoingUnansweredMessage(),
             "useTimeRange" to useTimeRange(),
             "startMinutes" to startMinutes(),
             "endMinutes" to endMinutes(),
@@ -230,7 +269,9 @@ class AutoReplyConfigStore(context: Context) {
         const val KEY_REPLY_INCOMING_CALL = "reply_incoming_call"
         const val KEY_REPLY_WHATSAPP_CALL = "reply_whatsapp_call"
         const val KEY_REPLY_BUSY_CALL = "reply_busy_call"
-        const val KEY_REPLY_OUTGOING_CALL = "reply_outgoing_call"
+        const val KEY_REPLY_REJECTED_CALL = "reply_rejected_call"
+        const val KEY_REPLY_OUTGOING_ANSWERED = "reply_outgoing_answered"
+        const val KEY_REPLY_OUTGOING_UNANSWERED = "reply_outgoing_unanswered"
         const val KEY_REPLY_ON_CALL_ANSWERED = "reply_on_call_answered"
         const val KEY_REPLY_ON_MISSED_CALL = "reply_on_missed_call"
         const val KEY_REPLY_ON_WHATSAPP_CALL = "reply_on_whatsapp_call"
@@ -238,7 +279,9 @@ class AutoReplyConfigStore(context: Context) {
         const val KEY_MSG_INCOMING_CALL = "msg_incoming_call"
         const val KEY_MSG_WHATSAPP_CALL = "msg_whatsapp_call"
         const val KEY_MSG_BUSY_CALL = "msg_busy_call"
-        const val KEY_MSG_OUTGOING_CALL = "msg_outgoing_call"
+        const val KEY_MSG_REJECTED_CALL = "msg_rejected_call"
+        const val KEY_MSG_OUTGOING_ANSWERED = "msg_outgoing_answered"
+        const val KEY_MSG_OUTGOING_UNANSWERED = "msg_outgoing_unanswered"
         const val KEY_THROTTLE_ENABLED = "throttle_enabled"
         const val KEY_USE_TIME_RANGE = "use_time_range"
         const val KEY_START_MINUTES = "start_minutes"
@@ -246,10 +289,12 @@ class AutoReplyConfigStore(context: Context) {
         const val KEY_DEFAULT_REPLY_MESSAGE = "default_reply_message"
         private const val DEFAULT_MESSAGE = "I'll call you later."
         private const val DEFAULT_MISSED_CALL_MESSAGE = "Sorry, I missed your call. I'll call you back."
-        private const val DEFAULT_INCOMING_CALL_MESSAGE = "I'm currently busy, will get back to you soon."
+        private const val DEFAULT_INCOMING_CALL_MESSAGE = "Thanks for calling! I'm currently busy, will get back to you soon."
         private const val DEFAULT_WHATSAPP_CALL_MESSAGE = "Sorry, I missed your WhatsApp call."
         private const val DEFAULT_BUSY_CALL_MESSAGE = "I'm on another call right now. I'll call you back."
-        private const val DEFAULT_OUTGOING_CALL_MESSAGE = "I'm currently on a call. I'll get back to you soon."
+        private const val DEFAULT_REJECTED_CALL_MESSAGE = "Sorry, I can't take your call right now. I'll get back to you shortly."
+        private const val DEFAULT_OUTGOING_ANSWERED_MESSAGE = "Thanks for picking up! Just following up via SMS as well."
+        private const val DEFAULT_OUTGOING_UNANSWERED_MESSAGE = "I tried calling you but couldn't reach you. Please call me back when free."
     }
 
     private fun normalizeMessage(value: String?, fallback: String): String {

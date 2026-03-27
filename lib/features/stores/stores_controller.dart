@@ -21,23 +21,29 @@ class StoresController extends GetxController {
       '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(9999999)}';
 
   static ReplyStore createEmptyStore({String name = 'New business'}) {
-    final ids = List<String>.generate(5, (_) => generateId());
+    final ids = List<String>.generate(7, (_) => generateId());
     const missed =
         "Sorry, I missed your call. I'll call you back.";
     const incoming =
-        "I'm currently busy, will get back to you soon.";
+        "Thanks for calling! I'm currently busy, will get back to you soon.";
     const wa = 'Sorry, I missed your WhatsApp call.';
     const busy =
         "I'm on another call right now. I'll call you back.";
-    const out =
-        "I'm currently on a call. I'll get back to you soon.";
+    const rejected =
+        "Sorry, I can't take your call right now. I'll get back to you shortly.";
+    const outAns =
+        "Thanks for picking up! Just following up via SMS as well.";
+    const outUnans =
+        "I tried calling you but couldn't reach you. Please call me back when free.";
 
     final templates = <ReplyTemplate>[
       ReplyTemplate(id: ids[0], text: missed),
       ReplyTemplate(id: ids[1], text: incoming),
       ReplyTemplate(id: ids[2], text: wa),
       ReplyTemplate(id: ids[3], text: busy),
-      ReplyTemplate(id: ids[4], text: out),
+      ReplyTemplate(id: ids[4], text: rejected),
+      ReplyTemplate(id: ids[5], text: outAns),
+      ReplyTemplate(id: ids[6], text: outUnans),
     ];
 
     return ReplyStore(
@@ -49,14 +55,18 @@ class StoresController extends GetxController {
       replyIncomingCall: false,
       replyWhatsappCall: true,
       replyBusyCall: false,
-      replyOutgoingCall: false,
+      replyRejectedCall: false,
+      replyOutgoingAnswered: false,
+      replyOutgoingUnanswered: false,
       templates: templates,
       eventTemplateIds: {
         ReplyStoreEventKeys.missedCall: ids[0],
         ReplyStoreEventKeys.incomingCall: ids[1],
         ReplyStoreEventKeys.missedWhatsapp: ids[2],
         ReplyStoreEventKeys.busyCall: ids[3],
-        ReplyStoreEventKeys.outgoingCall: ids[4],
+        ReplyStoreEventKeys.rejectedCall: ids[4],
+        ReplyStoreEventKeys.outgoingAnswered: ids[5],
+        ReplyStoreEventKeys.outgoingUnanswered: ids[6],
       },
     );
   }

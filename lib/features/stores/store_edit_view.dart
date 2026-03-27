@@ -29,7 +29,9 @@ class _StoreEditViewState extends State<StoreEditView> {
   late bool _tIncoming;
   late bool _tWa;
   late bool _tBusy;
-  late bool _tOut;
+  late bool _tRejected;
+  late bool _tOutAns;
+  late bool _tOutUnans;
   int? _subscriptionId;
   final Set<String> _groupKeys = {};
   final TextEditingController _groupTextCtrl = TextEditingController();
@@ -53,7 +55,9 @@ class _StoreEditViewState extends State<StoreEditView> {
     _tIncoming = s.replyIncomingCall;
     _tWa = s.replyWhatsappCall;
     _tBusy = s.replyBusyCall;
-    _tOut = s.replyOutgoingCall;
+    _tRejected = s.replyRejectedCall;
+    _tOutAns = s.replyOutgoingAnswered;
+    _tOutUnans = s.replyOutgoingUnanswered;
     _subscriptionId = s.subscriptionId;
     _msgCtrls = {
       for (final k in ReplyStoreEventKeys.all)
@@ -132,7 +136,9 @@ class _StoreEditViewState extends State<StoreEditView> {
       replyIncomingCall: _tIncoming,
       replyWhatsappCall: _tWa,
       replyBusyCall: _tBusy,
-      replyOutgoingCall: _tOut,
+      replyRejectedCall: _tRejected,
+      replyOutgoingAnswered: _tOutAns,
+      replyOutgoingUnanswered: _tOutUnans,
       templates: templates,
       eventTemplateIds: Map<String, String>.from(_eventTemplateIds),
     );
@@ -257,7 +263,9 @@ class _StoreEditViewState extends State<StoreEditView> {
                 _toggle('Incoming call (answered)', _tIncoming, (v) => setState(() => _tIncoming = v), icon: Icons.call_rounded),
                 _toggle('WhatsApp missed call', _tWa, (v) => setState(() => _tWa = v), icon: Icons.chat_bubble_rounded),
                 _toggle('Busy (call waiting)', _tBusy, (v) => setState(() => _tBusy = v), icon: Icons.call_end_rounded),
-                _toggle('Outgoing call', _tOut, (v) => setState(() => _tOut = v), icon: Icons.call_made_rounded),
+                _toggle('Rejected call', _tRejected, (v) => setState(() => _tRejected = v), icon: Icons.phone_disabled_rounded),
+                _toggle('Outgoing (answered)', _tOutAns, (v) => setState(() => _tOutAns = v), icon: Icons.call_made_rounded),
+                _toggle('Outgoing (no answer)', _tOutUnans, (v) => setState(() => _tOutUnans = v), icon: Icons.phone_callback_rounded),
                 const SizedBox(height: 6),
                 Align(
                   alignment: Alignment.centerLeft,

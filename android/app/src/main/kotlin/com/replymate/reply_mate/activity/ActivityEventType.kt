@@ -8,5 +8,7 @@ object ActivityEventType {
     const val MISSED_CALL = 1
     const val WHATSAPP_CALL = 2
     const val BUSY_CALL = 3
-    const val OUTGOING_CALL = 4
+    const val REJECTED_CALL = 4
+    const val OUTGOING_ANSWERED = 5
+    const val OUTGOING_UNANSWERED = 6
 }

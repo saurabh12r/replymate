@@ -30,7 +30,9 @@ TodayStats calculateTodayStats(List<ActivityLog> logs) {
   var missed = 0;
   var whatsapp = 0;
   var busy = 0;
-  var outgoing = 0;
+  var rejected = 0;
+  var outgoingAns = 0;
+  var outgoingUnans = 0;
   var repliesSent = 0;
 
   for (final log in logs) {
@@ -48,8 +50,14 @@ TodayStats calculateTodayStats(List<ActivityLog> logs) {
       case EventType.busyCall:
         busy++;
         break;
-      case EventType.outgoingCall:
-        outgoing++;
+      case EventType.rejectedCall:
+        rejected++;
+        break;
+      case EventType.outgoingAnswered:
+        outgoingAns++;
+        break;
+      case EventType.outgoingUnanswered:
+        outgoingUnans++;
         break;
     }
     if (log.replied) {
@@ -63,7 +71,7 @@ TodayStats calculateTodayStats(List<ActivityLog> logs) {
   return TodayStats(
     sent: sent,
     failed: failed,
-    totalCalls: incoming + missed + busy + outgoing,
+    totalCalls: incoming + missed + busy + rejected + outgoingAns + outgoingUnans,
     missedCalls: missed,
     whatsappCalls: whatsapp,
     repliesSent: repliesSent,

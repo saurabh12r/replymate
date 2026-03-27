@@ -4,4 +4,5 @@ enum FilterType {
   incoming,
   missed,
   whatsapp,
+  outgoing,
 }

@@ -6,24 +6,32 @@ class AutoReplyPreferences {
   static const String _keyReplyIncomingCall = 'reply_incoming_call';
   static const String _keyReplyWhatsappCall = 'reply_whatsapp_call';
   static const String _keyReplyBusyCall = 'reply_busy_call';
-  static const String _keyReplyOutgoingCall = 'reply_outgoing_call';
+  static const String _keyReplyRejectedCall = 'reply_rejected_call';
+  static const String _keyReplyOutgoingAnswered = 'reply_outgoing_answered';
+  static const String _keyReplyOutgoingUnanswered = 'reply_outgoing_unanswered';
   static const String _keyMsgMissedCall = 'msg_missed_call';
   static const String _keyMsgIncomingCall = 'msg_incoming_call';
   static const String _keyMsgWhatsappCall = 'msg_whatsapp_call';
   static const String _keyMsgBusyCall = 'msg_busy_call';
-  static const String _keyMsgOutgoingCall = 'msg_outgoing_call';
+  static const String _keyMsgRejectedCall = 'msg_rejected_call';
+  static const String _keyMsgOutgoingAnswered = 'msg_outgoing_answered';
+  static const String _keyMsgOutgoingUnanswered = 'msg_outgoing_unanswered';
   static const String _keyThrottleEnabled = 'throttle_enabled';
 
   static const String _defaultMissedCallMessage =
       "Sorry, I missed your call. I'll call you back.";
   static const String _defaultIncomingCallMessage =
-      "I'm currently busy, will get back to you soon.";
+      "Thanks for calling! I'm currently busy, will get back to you soon.";
   static const String _defaultWhatsappCallMessage =
       'Sorry, I missed your WhatsApp call.';
   static const String _defaultBusyCallMessage =
       "I'm on another call right now. I'll call you back.";
-  static const String _defaultOutgoingCallMessage =
-      "I'm currently on a call. I'll get back to you soon.";
+  static const String _defaultRejectedCallMessage =
+      "Sorry, I can't take your call right now. I'll get back to you shortly.";
+  static const String _defaultOutgoingAnsweredMessage =
+      "Thanks for picking up! Just following up via SMS as well.";
+  static const String _defaultOutgoingUnansweredMessage =
+      "I tried calling you but couldn't reach you. Please call me back when free.";
   static const bool _defaultThrottleEnabled = true;
 
   Future<bool> getAutoReplyEnabled() async {
@@ -76,14 +84,34 @@ class AutoReplyPreferences {
     await prefs.setBool(_keyReplyBusyCall, value);
   }
 
-  Future<bool> getReplyOutgoingCall() async {
+  Future<bool> getReplyRejectedCall() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_keyReplyOutgoingCall) ?? false;
+    return prefs.getBool(_keyReplyRejectedCall) ?? false;
   }
 
-  Future<void> setReplyOutgoingCall(bool value) async {
+  Future<void> setReplyRejectedCall(bool value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyReplyOutgoingCall, value);
+    await prefs.setBool(_keyReplyRejectedCall, value);
+  }
+
+  Future<bool> getReplyOutgoingAnswered() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyReplyOutgoingAnswered) ?? false;
+  }
+
+  Future<void> setReplyOutgoingAnswered(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyReplyOutgoingAnswered, value);
+  }
+
+  Future<bool> getReplyOutgoingUnanswered() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyReplyOutgoingUnanswered) ?? false;
+  }
+
+  Future<void> setReplyOutgoingUnanswered(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyReplyOutgoingUnanswered, value);
   }
 
   Future<bool> getThrottleEnabled() async {
@@ -146,18 +174,45 @@ class AutoReplyPreferences {
     await prefs.setString(_keyMsgBusyCall, normalized);
   }
 
-  Future<String> getOutgoingCallMessage() async {
+  Future<String> getRejectedCallMessage() async {
     final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getString(_keyMsgOutgoingCall)?.trim();
+    final value = prefs.getString(_keyMsgRejectedCall)?.trim();
+    return (value == null || value.isEmpty) ? _defaultRejectedCallMessage : value;
+  }
+
+  Future<void> setRejectedCallMessage(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    final normalized = value.trim().isEmpty ? _defaultRejectedCallMessage : value.trim();
+    await prefs.setString(_keyMsgRejectedCall, normalized);
+  }
+
+  Future<String> getOutgoingAnsweredMessage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(_keyMsgOutgoingAnswered)?.trim();
     return (value == null || value.isEmpty)
-        ? _defaultOutgoingCallMessage
+        ? _defaultOutgoingAnsweredMessage
         : value;
   }
 
-  Future<void> setOutgoingCallMessage(String value) async {
+  Future<void> setOutgoingAnsweredMessage(String value) async {
     final prefs = await SharedPreferences.getInstance();
     final normalized =
-        value.trim().isEmpty ? _defaultOutgoingCallMessage : value.trim();
-    await prefs.setString(_keyMsgOutgoingCall, normalized);
+        value.trim().isEmpty ? _defaultOutgoingAnsweredMessage : value.trim();
+    await prefs.setString(_keyMsgOutgoingAnswered, normalized);
+  }
+
+  Future<String> getOutgoingUnansweredMessage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(_keyMsgOutgoingUnanswered)?.trim();
+    return (value == null || value.isEmpty)
+        ? _defaultOutgoingUnansweredMessage
+        : value;
+  }
+
+  Future<void> setOutgoingUnansweredMessage(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    final normalized =
+        value.trim().isEmpty ? _defaultOutgoingUnansweredMessage : value.trim();
+    await prefs.setString(_keyMsgOutgoingUnanswered, normalized);
   }
 }

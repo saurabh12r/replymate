@@ -15,7 +15,9 @@ data class StoreRecord(
     val replyIncomingCall: Boolean,
     val replyWhatsappCall: Boolean,
     val replyBusyCall: Boolean,
-    val replyOutgoingCall: Boolean,
+    val replyRejectedCall: Boolean,
+    val replyOutgoingAnswered: Boolean,
+    val replyOutgoingUnanswered: Boolean,
     val templates: List<StoreTemplate>,
     /** Event key → template id */
     val eventTemplateIds: Map<String, String>,
@@ -26,7 +28,9 @@ data class StoreRecord(
             AutoReplyEvent.CALL_ANSWERED -> replyIncomingCall
             AutoReplyEvent.MISSED_WHATSAPP_CALL -> replyWhatsappCall
             AutoReplyEvent.BUSY_CALL -> replyBusyCall
-            AutoReplyEvent.OUTGOING_CALL -> replyOutgoingCall
+            AutoReplyEvent.REJECTED_CALL -> replyRejectedCall
+            AutoReplyEvent.OUTGOING_ANSWERED -> replyOutgoingAnswered
+            AutoReplyEvent.OUTGOING_UNANSWERED -> replyOutgoingUnanswered
         }
     }
 

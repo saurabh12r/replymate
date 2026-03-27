@@ -6,14 +6,21 @@ class ReplyStoreEventKeys {
   static const incomingCall = 'incoming_call';
   static const missedWhatsapp = 'missed_whatsapp';
   static const busyCall = 'busy_call';
-  static const outgoingCall = 'outgoing_call';
+  static const rejectedCall = 'rejected_call';
+  static const outgoingAnswered = 'outgoing_answered';
+  static const outgoingUnanswered = 'outgoing_unanswered';
+
+  /// Legacy key kept for migration only.
+  static const legacyOutgoingCall = 'outgoing_call';
 
   static const all = <String>[
     missedCall,
     incomingCall,
     missedWhatsapp,
     busyCall,
-    outgoingCall,
+    rejectedCall,
+    outgoingAnswered,
+    outgoingUnanswered,
   ];
 
   static String label(String key) {
@@ -21,13 +28,17 @@ class ReplyStoreEventKeys {
       case missedCall:
         return 'Missed call';
       case incomingCall:
-        return 'Incoming call';
+        return 'Incoming call (answered)';
       case missedWhatsapp:
         return 'WhatsApp missed call';
       case busyCall:
         return 'Busy (call waiting)';
-      case outgoingCall:
-        return 'Outgoing call';
+      case rejectedCall:
+        return 'Rejected call';
+      case outgoingAnswered:
+        return 'Outgoing (answered)';
+      case outgoingUnanswered:
+        return 'Outgoing (no answer)';
       default:
         return key;
     }
@@ -60,7 +71,9 @@ class ReplyStore {
     required this.replyIncomingCall,
     required this.replyWhatsappCall,
     required this.replyBusyCall,
-    required this.replyOutgoingCall,
+    required this.replyRejectedCall,
+    required this.replyOutgoingAnswered,
+    required this.replyOutgoingUnanswered,
     required this.templates,
     required this.eventTemplateIds,
   });
@@ -73,7 +86,9 @@ class ReplyStore {
   final bool replyIncomingCall;
   final bool replyWhatsappCall;
   final bool replyBusyCall;
-  final bool replyOutgoingCall;
+  final bool replyRejectedCall;
+  final bool replyOutgoingAnswered;
+  final bool replyOutgoingUnanswered;
   final List<ReplyTemplate> templates;
   final Map<String, String> eventTemplateIds;
 
@@ -87,8 +102,12 @@ class ReplyStore {
         return replyWhatsappCall;
       case ReplyStoreEventKeys.busyCall:
         return replyBusyCall;
-      case ReplyStoreEventKeys.outgoingCall:
-        return replyOutgoingCall;
+      case ReplyStoreEventKeys.rejectedCall:
+        return replyRejectedCall;
+      case ReplyStoreEventKeys.outgoingAnswered:
+        return replyOutgoingAnswered;
+      case ReplyStoreEventKeys.outgoingUnanswered:
+        return replyOutgoingUnanswered;
       default:
         return false;
     }
@@ -116,7 +135,9 @@ class ReplyStore {
       'replyIncomingCall': replyIncomingCall,
       'replyWhatsappCall': replyWhatsappCall,
       'replyBusyCall': replyBusyCall,
-      'replyOutgoingCall': replyOutgoingCall,
+      'replyRejectedCall': replyRejectedCall,
+      'replyOutgoingAnswered': replyOutgoingAnswered,
+      'replyOutgoingUnanswered': replyOutgoingUnanswered,
       'templates': templates.map((t) => t.toJson()).toList(),
       'eventTemplateIds': eventTemplateIds,
     };
@@ -139,6 +160,13 @@ class ReplyStore {
         eventMap[k.toString()] = v.toString();
       });
     }
+    // Migrate legacy "outgoing_call" key to the two new keys.
+    final legacyOut = eventMap.remove(ReplyStoreEventKeys.legacyOutgoingCall);
+    if (legacyOut != null && legacyOut.isNotEmpty) {
+      eventMap.putIfAbsent(ReplyStoreEventKeys.outgoingAnswered, () => legacyOut);
+      eventMap.putIfAbsent(ReplyStoreEventKeys.outgoingUnanswered, () => legacyOut);
+    }
+
     int? sub;
     if (m.containsKey('subscriptionId') && m['subscriptionId'] != null) {
       final v = m['subscriptionId'];
@@ -148,6 +176,10 @@ class ReplyStore {
         sub = v.toInt();
       }
     }
+
+    // Legacy field migration: old "replyOutgoingCall" → both new outgoing toggles.
+    final legacyOutToggle = m['replyOutgoingCall'] == true;
+
     return ReplyStore(
       id: m['id']?.toString() ?? '',
       name: m['name']?.toString() ?? 'Business',
@@ -157,7 +189,9 @@ class ReplyStore {
       replyIncomingCall: m['replyIncomingCall'] == true,
       replyWhatsappCall: m['replyWhatsappCall'] == true,
       replyBusyCall: m['replyBusyCall'] == true,
-      replyOutgoingCall: m['replyOutgoingCall'] == true,
+      replyRejectedCall: m['replyRejectedCall'] == true,
+      replyOutgoingAnswered: m['replyOutgoingAnswered'] == true || (m['replyOutgoingAnswered'] == null && legacyOutToggle),
+      replyOutgoingUnanswered: m['replyOutgoingUnanswered'] == true || (m['replyOutgoingUnanswered'] == null && legacyOutToggle),
       templates: templates,
       eventTemplateIds: eventMap,
     );
@@ -173,7 +207,9 @@ class ReplyStore {
     bool? replyIncomingCall,
     bool? replyWhatsappCall,
     bool? replyBusyCall,
-    bool? replyOutgoingCall,
+    bool? replyRejectedCall,
+    bool? replyOutgoingAnswered,
+    bool? replyOutgoingUnanswered,
     List<ReplyTemplate>? templates,
     Map<String, String>? eventTemplateIds,
   }) {
@@ -186,7 +222,9 @@ class ReplyStore {
       replyIncomingCall: replyIncomingCall ?? this.replyIncomingCall,
       replyWhatsappCall: replyWhatsappCall ?? this.replyWhatsappCall,
       replyBusyCall: replyBusyCall ?? this.replyBusyCall,
-      replyOutgoingCall: replyOutgoingCall ?? this.replyOutgoingCall,
+      replyRejectedCall: replyRejectedCall ?? this.replyRejectedCall,
+      replyOutgoingAnswered: replyOutgoingAnswered ?? this.replyOutgoingAnswered,
+      replyOutgoingUnanswered: replyOutgoingUnanswered ?? this.replyOutgoingUnanswered,
       templates: templates ?? this.templates,
       eventTemplateIds: eventTemplateIds ?? this.eventTemplateIds,
     );

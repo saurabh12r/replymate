@@ -25,7 +25,11 @@ String activityLogTypeLabel(EventType type) {
       return 'WhatsApp';
     case EventType.busyCall:
       return 'Busy';
-    case EventType.outgoingCall:
-      return 'Outgoing';
+    case EventType.rejectedCall:
+      return 'Rejected';
+    case EventType.outgoingAnswered:
+      return 'Outgoing (Answered)';
+    case EventType.outgoingUnanswered:
+      return 'Outgoing (No Answer)';
   }
 }

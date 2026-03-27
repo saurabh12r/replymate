@@ -41,13 +41,19 @@ class DashboardController extends GetxController {
       'Sorry, I missed your WhatsApp call.'.obs;
   final RxString busyCallMessage =
       "I'm on another call right now. I'll call you back.".obs;
-  final RxString outgoingCallMessage =
-      "I'm currently on a call. I'll get back to you soon.".obs;
+  final RxString rejectedCallMessage =
+      "Sorry, I can't take your call right now. I'll get back to you shortly.".obs;
+  final RxString outgoingAnsweredMessage =
+      "Thanks for picking up! Just following up via SMS as well.".obs;
+  final RxString outgoingUnansweredMessage =
+      "I tried calling you but couldn't reach you. Please call me back when free.".obs;
   final RxBool replyOnMissedCall = true.obs;
   final RxBool replyOnIncomingCall = false.obs;
   final RxBool replyOnWhatsappCall = true.obs;
   final RxBool replyOnBusyCall = false.obs;
-  final RxBool replyOnOutgoingCall = false.obs;
+  final RxBool replyOnRejectedCall = false.obs;
+  final RxBool replyOnOutgoingAnswered = false.obs;
+  final RxBool replyOnOutgoingUnanswered = false.obs;
 
   // ── Bottom nav ────────────────────────────────────────────────────────────
   final RxInt selectedNavIndex = 0.obs;
@@ -134,7 +140,9 @@ class DashboardController extends GetxController {
     replyOnIncomingCall.value = store.replyIncomingCall;
     replyOnWhatsappCall.value = store.replyWhatsappCall;
     replyOnBusyCall.value = store.replyBusyCall;
-    replyOnOutgoingCall.value = store.replyOutgoingCall;
+    replyOnRejectedCall.value = store.replyRejectedCall;
+    replyOnOutgoingAnswered.value = store.replyOutgoingAnswered;
+    replyOnOutgoingUnanswered.value = store.replyOutgoingUnanswered;
     missedCallMessage.value =
         store.messageForEventKey(ReplyStoreEventKeys.missedCall) ?? '—';
     incomingCallMessage.value =
@@ -143,8 +151,12 @@ class DashboardController extends GetxController {
         store.messageForEventKey(ReplyStoreEventKeys.missedWhatsapp) ?? '—';
     busyCallMessage.value =
         store.messageForEventKey(ReplyStoreEventKeys.busyCall) ?? '—';
-    outgoingCallMessage.value =
-        store.messageForEventKey(ReplyStoreEventKeys.outgoingCall) ?? '—';
+    rejectedCallMessage.value =
+        store.messageForEventKey(ReplyStoreEventKeys.rejectedCall) ?? '—';
+    outgoingAnsweredMessage.value =
+        store.messageForEventKey(ReplyStoreEventKeys.outgoingAnswered) ?? '—';
+    outgoingUnansweredMessage.value =
+        store.messageForEventKey(ReplyStoreEventKeys.outgoingUnanswered) ?? '—';
   }
 
   void _clearStorePreview() {
@@ -153,13 +165,17 @@ class DashboardController extends GetxController {
     replyOnIncomingCall.value = false;
     replyOnWhatsappCall.value = false;
     replyOnBusyCall.value = false;
-    replyOnOutgoingCall.value = false;
+    replyOnRejectedCall.value = false;
+    replyOnOutgoingAnswered.value = false;
+    replyOnOutgoingUnanswered.value = false;
     const dash = '—';
     missedCallMessage.value = dash;
     incomingCallMessage.value = dash;
     whatsappCallMessage.value = dash;
     busyCallMessage.value = dash;
-    outgoingCallMessage.value = dash;
+    rejectedCallMessage.value = dash;
+    outgoingAnsweredMessage.value = dash;
+    outgoingUnansweredMessage.value = dash;
   }
 
   Future<bool> _isAutoReplyAllowedInFirebase() async {

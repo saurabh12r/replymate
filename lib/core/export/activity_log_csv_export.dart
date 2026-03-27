@@ -38,14 +38,16 @@ String generateCSV(List<ActivityLog> logs) {
   return buf.toString();
 }
 
-/// Channel + reply outcome for the Event Type column (spec: Incoming, Missed, WhatsApp, Reply Sent, Reply Failed).
+/// Channel + reply outcome for the Event Type column.
 String _eventTypeExportLabel(ActivityLog log) {
   final channel = switch (log.type) {
     EventType.incomingCall => 'Incoming',
     EventType.missedCall => 'Missed',
     EventType.whatsappCall => 'WhatsApp',
     EventType.busyCall => 'Busy',
-    EventType.outgoingCall => 'Outgoing',
+    EventType.rejectedCall => 'Rejected',
+    EventType.outgoingAnswered => 'Outgoing Answered',
+    EventType.outgoingUnanswered => 'Outgoing Unanswered',
   };
   final outcome = log.replied ? 'Reply Sent' : 'Reply Failed';
   return '$channel — $outcome';

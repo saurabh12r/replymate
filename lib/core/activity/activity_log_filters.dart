@@ -30,7 +30,7 @@ List<ActivityLog> applyActivityLogFilters({
       case FilterType.incoming:
         if (e.type != EventType.incomingCall &&
             e.type != EventType.busyCall &&
-            e.type != EventType.outgoingCall) {
+            e.type != EventType.rejectedCall) {
           continue;
         }
         break;
@@ -39,6 +39,12 @@ List<ActivityLog> applyActivityLogFilters({
         break;
       case FilterType.whatsapp:
         if (e.type != EventType.whatsappCall) continue;
+        break;
+      case FilterType.outgoing:
+        if (e.type != EventType.outgoingAnswered &&
+            e.type != EventType.outgoingUnanswered) {
+          continue;
+        }
         break;
     }
     if (q.isNotEmpty) {

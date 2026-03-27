@@ -6,7 +6,7 @@ import 'analytics_filter.dart';
 /// Fixed response goal denominator for the KPI card (e.g. 205/250).
 const int kAnalyticsResponseGoalTarget = 250;
 
-/// One bar bucket for “Replies over time” (local time-of-day).
+/// One bar bucket for "Replies over time" (local time-of-day).
 class AnalyticsTimeBucket {
   const AnalyticsTimeBucket({required this.label, required this.count});
 
@@ -36,13 +36,13 @@ class ActivityAnalyticsSnapshot {
   /// Rows matching the selected period filter.
   final int logsInPeriod;
 
-  /// Logs with [ActivityLog.replied] == true (maps to “replySent”).
+  /// Logs with [ActivityLog.replied] == true (maps to "replySent").
   final int replySentCount;
 
-  /// Logs with [ActivityLog.replied] == false (maps to “replyFailed” for efficiency).
+  /// Logs with [ActivityLog.replied] == false (maps to "replyFailed" for efficiency).
   final int replyFailedCount;
 
-  /// (replySent / (replySent + replyFailed)) × 100, or 0 if no denominator.
+  /// (replySent / (replySent + replyFailed)) x 100, or 0 if no denominator.
   final double efficiencyPercent;
 
   final bool hasEfficiencyDenominator;
@@ -54,7 +54,7 @@ class ActivityAnalyticsSnapshot {
 
   final List<AnalyticsTimeBucket> barBuckets;
 
-  /// All WhatsApp call events (for “Top Channels”).
+  /// All WhatsApp call events (for "Top Channels").
   final int whatsappChannelEvents;
 
   /// Replies sent via phone/SMS path (incoming + missed with replied).
@@ -76,7 +76,7 @@ class ActivityAnalyticsService {
     '9pm',
   ];
 
-  /// Local hour → bucket 0..5 (3h windows; last bucket is 9pm–6am).
+  /// Local hour -> bucket 0..5 (3h windows; last bucket is 9pm-6am).
   static int _timeSlotIndex(DateTime utc) {
     final h = utc.toLocal().hour;
     if (h >= 6 && h < 9) return 0;
@@ -121,7 +121,9 @@ class ActivityAnalyticsService {
     var missed = 0;
     var wa = 0;
     var busy = 0;
-    var outgoing = 0;
+    var rejected = 0;
+    var outAns = 0;
+    var outUnans = 0;
     var repliedYes = 0;
     var repliedNo = 0;
     var smsReplies = 0;
@@ -144,18 +146,21 @@ class ActivityAnalyticsService {
         case EventType.busyCall:
           busy++;
           break;
-        case EventType.outgoingCall:
-          outgoing++;
+        case EventType.rejectedCall:
+          rejected++;
+          break;
+        case EventType.outgoingAnswered:
+          outAns++;
+          break;
+        case EventType.outgoingUnanswered:
+          outUnans++;
           break;
       }
 
       if (log.replied) {
         repliedYes++;
         buckets[_timeSlotIndex(log.timestamp)]++;
-        if (log.type == EventType.incomingCall ||
-            log.type == EventType.missedCall ||
-            log.type == EventType.busyCall ||
-            log.type == EventType.outgoingCall) {
+        if (log.type != EventType.whatsappCall) {
           smsReplies++;
         }
       } else {
@@ -177,7 +182,7 @@ class ActivityAnalyticsService {
       replyFailedCount: repliedNo,
       efficiencyPercent: eff,
       hasEfficiencyDenominator: denom > 0,
-      totalCalls: incoming + missed + busy + outgoing,
+      totalCalls: incoming + missed + busy + rejected + outAns + outUnans,
       missedCalls: missed,
       whatsappCalls: wa,
       repliesSent: repliedYes,

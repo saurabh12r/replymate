@@ -27,7 +27,9 @@ class AutoReplyBridge {
     required bool replyOnMissedCall,
     required bool replyOnWhatsappCall,
     required bool replyOnBusyCall,
-    required bool replyOnOutgoingCall,
+    required bool replyOnRejectedCall,
+    required bool replyOnOutgoingAnswered,
+    required bool replyOnOutgoingUnanswered,
     required bool useTimeRange,
     required int startMinutes,
     required int endMinutes,
@@ -39,7 +41,9 @@ class AutoReplyBridge {
       'replyOnMissedCall': replyOnMissedCall,
       'replyOnWhatsappCall': replyOnWhatsappCall,
       'replyOnBusyCall': replyOnBusyCall,
-      'replyOnOutgoingCall': replyOnOutgoingCall,
+      'replyOnRejectedCall': replyOnRejectedCall,
+      'replyOnOutgoingAnswered': replyOnOutgoingAnswered,
+      'replyOnOutgoingUnanswered': replyOnOutgoingUnanswered,
       'useTimeRange': useTimeRange,
       'startMinutes': startMinutes,
       'endMinutes': endMinutes,
@@ -103,14 +107,18 @@ class AutoReplyBridge {
     required bool replyOnIncomingCall,
     required bool replyOnWhatsappCall,
     required bool replyOnBusyCall,
-    required bool replyOnOutgoingCall,
+    required bool replyOnRejectedCall,
+    required bool replyOnOutgoingAnswered,
+    required bool replyOnOutgoingUnanswered,
   }) async {
     await _channel.invokeMethod('setReplyRules', {
       'replyOnMissedCall': replyOnMissedCall,
       'replyOnIncomingCall': replyOnIncomingCall,
       'replyOnWhatsappCall': replyOnWhatsappCall,
       'replyOnBusyCall': replyOnBusyCall,
-      'replyOnOutgoingCall': replyOnOutgoingCall,
+      'replyOnRejectedCall': replyOnRejectedCall,
+      'replyOnOutgoingAnswered': replyOnOutgoingAnswered,
+      'replyOnOutgoingUnanswered': replyOnOutgoingUnanswered,
     });
   }
 
@@ -119,14 +127,18 @@ class AutoReplyBridge {
     required String incomingCallMessage,
     required String whatsappCallMessage,
     required String busyCallMessage,
-    required String outgoingCallMessage,
+    required String rejectedCallMessage,
+    required String outgoingAnsweredMessage,
+    required String outgoingUnansweredMessage,
   }) async {
     await _channel.invokeMethod('setCustomMessages', {
       'missedCallMessage': missedCallMessage,
       'incomingCallMessage': incomingCallMessage,
       'whatsappCallMessage': whatsappCallMessage,
       'busyCallMessage': busyCallMessage,
-      'outgoingCallMessage': outgoingCallMessage,
+      'rejectedCallMessage': rejectedCallMessage,
+      'outgoingAnsweredMessage': outgoingAnsweredMessage,
+      'outgoingUnansweredMessage': outgoingUnansweredMessage,
     });
   }
 

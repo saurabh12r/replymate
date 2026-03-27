@@ -11,7 +11,7 @@ import 'activity_log_channel.dart';
 import 'event_type.dart';
 
 const String kActivityLogsBoxName = 'activity_logs';
-const int _kHiveActivitySchemaVersion = 3;
+const int _kHiveActivitySchemaVersion = 4;
 const String _kHiveSchemaPrefsKey = 'activity_logs_hive_schema_v';
 
 /// Hive-backed activity log + import from Android pending file.
