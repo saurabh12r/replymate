@@ -32,6 +32,10 @@ class _StoreEditViewState extends State<StoreEditView> {
   late bool _tRejected;
   late bool _tOutAns;
   late bool _tOutUnans;
+  late bool _enableDaysSetup;
+  late List<int> _selectedDays;
+  late bool _vacationMode;
+  late TextEditingController _vacationMsgCtrl;
   int? _subscriptionId;
   final Set<String> _groupKeys = {};
   final TextEditingController _groupTextCtrl = TextEditingController();
@@ -40,9 +44,6 @@ class _StoreEditViewState extends State<StoreEditView> {
 
   static const Color _primary = Color(0xFF24389C);
   static const Color _success = Color(0xFF2E7D32);
-  static const Color _outlineVariant = Color(0xFFC5C5D4);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-  static const Color _surface = Colors.white;
 
   @override
   void initState() {
@@ -58,6 +59,10 @@ class _StoreEditViewState extends State<StoreEditView> {
     _tRejected = s.replyRejectedCall;
     _tOutAns = s.replyOutgoingAnswered;
     _tOutUnans = s.replyOutgoingUnanswered;
+    _enableDaysSetup = s.enableDaysSetup;
+    _selectedDays = List<int>.from(s.selectedDays);
+    _vacationMode = s.vacationMode;
+    _vacationMsgCtrl = TextEditingController(text: s.vacationMessage);
     _subscriptionId = s.subscriptionId;
     _msgCtrls = {
       for (final k in ReplyStoreEventKeys.all)
@@ -68,6 +73,7 @@ class _StoreEditViewState extends State<StoreEditView> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _vacationMsgCtrl.dispose();
     for (final c in _msgCtrls.values) {
       c.dispose();
     }
@@ -91,7 +97,11 @@ class _StoreEditViewState extends State<StoreEditView> {
     Get.snackbar('Applied', 'Message linked to selected types.');
   }
 
-  Future<void> _save() async {
+  bool _saved = false;
+
+  Future<void> _save({bool pop = true}) async {
+    if (_saved) return;
+    _saved = true;
     final infos = _c.subscriptionInfos;
     int? sid = _subscriptionId;
     if (sid != null &&
@@ -139,6 +149,10 @@ class _StoreEditViewState extends State<StoreEditView> {
       replyRejectedCall: _tRejected,
       replyOutgoingAnswered: _tOutAns,
       replyOutgoingUnanswered: _tOutUnans,
+      enableDaysSetup: _enableDaysSetup,
+      selectedDays: _selectedDays,
+      vacationMode: _vacationMode,
+      vacationMessage: _vacationMsgCtrl.text.trim(),
       templates: templates,
       eventTemplateIds: Map<String, String>.from(_eventTemplateIds),
     );
@@ -159,13 +173,19 @@ class _StoreEditViewState extends State<StoreEditView> {
     }
 
     await _c.saveAll(ordered, reassignedFromStoreName: conflict);
-    if (mounted) Get.back<void>();
+    if (pop && mounted) Get.back<void>();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+    final theme = Theme.of(context);
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        _save(pop: false);
+      },
+      child: Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: _primary,
         foregroundColor: Colors.white,
@@ -183,9 +203,10 @@ class _StoreEditViewState extends State<StoreEditView> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _sectionLabel('Business'),
+          _sectionLabel(context, 'Business'),
           const SizedBox(height: 10),
           _card(
+            context,
             child: Column(
               children: [
                 TextField(
@@ -199,16 +220,16 @@ class _StoreEditViewState extends State<StoreEditView> {
                 const SizedBox(height: 12),
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8F9FA),
+                    color: theme.scaffoldBackgroundColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: _outlineVariant.withAlpha(90)),
+                    border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(90)),
                   ),
                   child: SwitchListTile(
                     secondary: const Icon(Icons.power_settings_new_rounded),
                     title: Text('Active', style: GoogleFonts.manrope(fontWeight: FontWeight.w800)),
                     subtitle: Text(
                       'When off, no auto-replies for this SIM',
-                      style: GoogleFonts.inter(color: _onSurfaceVariant),
+                      style: GoogleFonts.inter(color: theme.colorScheme.onSurfaceVariant),
                     ),
                     value: _active,
                     onChanged: (v) => setState(() => _active = v),
@@ -219,9 +240,10 @@ class _StoreEditViewState extends State<StoreEditView> {
             ),
           ),
           const SizedBox(height: 16),
-          _sectionLabel('SIM'),
+          _sectionLabel(context, 'SIM'),
           const SizedBox(height: 10),
           _card(
+            context,
             child: Obx(() {
               final infos = _c.subscriptionInfos;
               final valid = _subscriptionId != null &&
@@ -254,27 +276,100 @@ class _StoreEditViewState extends State<StoreEditView> {
             }),
           ),
           const SizedBox(height: 16),
-          _sectionLabel('Reply types'),
+          _sectionLabel(context, 'Days setup'),
           const SizedBox(height: 10),
           _card(
+            context,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _toggle('Missed call', _tMissed, (v) => setState(() => _tMissed = v), icon: Icons.call_missed_rounded),
-                _toggle('Incoming call (answered)', _tIncoming, (v) => setState(() => _tIncoming = v), icon: Icons.call_rounded),
-                _toggle('Busy (call waiting)', _tBusy, (v) => setState(() => _tBusy = v), icon: Icons.call_end_rounded),
-                _toggle('Rejected call', _tRejected, (v) => setState(() => _tRejected = v), icon: Icons.phone_disabled_rounded),
-                _toggle('Outgoing (answered)', _tOutAns, (v) => setState(() => _tOutAns = v), icon: Icons.call_made_rounded),
-                _toggle('Outgoing (no answer)', _tOutUnans, (v) => setState(() => _tOutUnans = v), icon: Icons.phone_callback_rounded),
+                SwitchListTile(
+                  secondary: const Icon(Icons.calendar_month_rounded, color: _primary),
+                  title: Text('Enable specific days', style: GoogleFonts.manrope(fontWeight: FontWeight.w800)),
+                  subtitle: Text(
+                    'When on, replies are sent only on selected days.',
+                    style: GoogleFonts.inter(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+                  ),
+                  value: _enableDaysSetup,
+                  onChanged: (v) => setState(() => _enableDaysSetup = v),
+                  activeThumbColor: _primary,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                if (_enableDaysSetup) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _dayChip(context, 1, 'Mon'),
+                      _dayChip(context, 2, 'Tue'),
+                      _dayChip(context, 3, 'Wed'),
+                      _dayChip(context, 4, 'Thu'),
+                      _dayChip(context, 5, 'Fri'),
+                      _dayChip(context, 6, 'Sat'),
+                      _dayChip(context, 7, 'Sun'),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 16),
-          _sectionLabel('Messages'),
+          _sectionLabel(context, 'Vacation mode'),
+          const SizedBox(height: 10),
+          _card(
+            context,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.beach_access_rounded, color: _primary),
+                  title: Text('Enable vacation mode', style: GoogleFonts.manrope(fontWeight: FontWeight.w800)),
+                  subtitle: Text(
+                    'Overrides all standard messages with a single vacation message.',
+                    style: GoogleFonts.inter(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+                  ),
+                  value: _vacationMode,
+                  onChanged: (v) => setState(() => _vacationMode = v),
+                  activeThumbColor: _primary,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _vacationMsgCtrl,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Vacation message',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _sectionLabel(context, 'Reply types'),
+          const SizedBox(height: 10),
+          _card(
+            context,
+            child: Column(
+              children: [
+                _toggle(context, 'Missed call', _tMissed, (v) => setState(() => _tMissed = v), icon: Icons.call_missed_rounded),
+                _toggle(context, 'Incoming call (answered)', _tIncoming, (v) => setState(() => _tIncoming = v), icon: Icons.call_rounded),
+                _toggle(context, 'Busy (call waiting)', _tBusy, (v) => setState(() => _tBusy = v), icon: Icons.call_end_rounded),
+                _toggle(context, 'Rejected call', _tRejected, (v) => setState(() => _tRejected = v), icon: Icons.phone_disabled_rounded),
+                _toggle(context, 'Outgoing (answered)', _tOutAns, (v) => setState(() => _tOutAns = v), icon: Icons.call_made_rounded),
+                _toggle(context, 'Outgoing (no answer)', _tOutUnans, (v) => setState(() => _tOutUnans = v), icon: Icons.phone_callback_rounded),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _sectionLabel(context, 'Messages'),
           const SizedBox(height: 10),
           ...ReplyStoreEventKeys.all.map((k) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _card(
+                context,
                 padding: const EdgeInsets.all(14),
                 child: TextField(
                   controller: _msgCtrls[k],
@@ -288,9 +383,10 @@ class _StoreEditViewState extends State<StoreEditView> {
             );
           }),
           const SizedBox(height: 6),
-          _sectionLabel('Bulk apply'),
+          _sectionLabel(context, 'Bulk apply'),
           const SizedBox(height: 10),
           _card(
+            context,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -302,7 +398,7 @@ class _StoreEditViewState extends State<StoreEditView> {
                   children: ReplyStoreEventKeys.all.map((k) {
                     final sel = _groupKeys.contains(k);
                     return FilterChip(
-                      label: Text(ReplyStoreEventKeys.label(k), style: const TextStyle(fontSize: 11)),
+                      label: Text(ReplyStoreEventKeys.label(k), style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface)),
                       selected: sel,
                       selectedColor: _primary.withAlpha(18),
                       checkmarkColor: _primary,
@@ -347,24 +443,27 @@ class _StoreEditViewState extends State<StoreEditView> {
           ),
         ],
       ),
+    ),
     );
   }
 
-  Widget _sectionLabel(String text) {
+  Widget _sectionLabel(BuildContext context, String text) {
     return Text(
       text,
-      style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 16),
+      style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 16, color: Theme.of(context).colorScheme.onSurface),
     );
   }
 
-  Widget _card({
+  Widget _card(
+    BuildContext context, {
     required Widget child,
     EdgeInsetsGeometry padding = const EdgeInsets.all(16),
   }) {
+    final theme = Theme.of(context);
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: _surface,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -373,13 +472,14 @@ class _StoreEditViewState extends State<StoreEditView> {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: _outlineVariant.withAlpha(60)),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(60)),
       ),
       child: child,
     );
   }
 
   Widget _toggle(
+    BuildContext context,
     String label,
     bool value,
     ValueChanged<bool> onChanged, {
@@ -387,12 +487,31 @@ class _StoreEditViewState extends State<StoreEditView> {
   }) {
     return SwitchListTile(
       secondary: Icon(icon, color: _primary),
-      title: Text(label, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+      title: Text(label, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface)),
       value: value,
       onChanged: onChanged,
       dense: true,
       activeThumbColor: _primary,
       contentPadding: EdgeInsets.zero,
+    );
+  }
+
+  Widget _dayChip(BuildContext context, int day, String label) {
+    final sel = _selectedDays.contains(day);
+    return FilterChip(
+      label: Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface)),
+      selected: sel,
+      selectedColor: _primary.withAlpha(20),
+      checkmarkColor: _primary,
+      onSelected: (v) {
+        setState(() {
+          if (v) {
+            _selectedDays.add(day);
+          } else {
+            _selectedDays.remove(day);
+          }
+        });
+      },
     );
   }
 }

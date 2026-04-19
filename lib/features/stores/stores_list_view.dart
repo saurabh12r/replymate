@@ -17,11 +17,12 @@ class StoresListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final c = Get.isRegistered<StoresController>()
         ? Get.find<StoresController>()
         : Get.put(StoresController());
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: theme.scaffoldBackgroundColor,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final draft = StoresController.createEmptyStore();
@@ -30,7 +31,7 @@ class StoresListView extends StatelessWidget {
         },
         backgroundColor: _primary,
         icon: const Icon(Icons.add_rounded),
-        label: Text('Add business', style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
+        label: Text('Add business', style: GoogleFonts.manrope(fontWeight: FontWeight.w700, color: Colors.white)),
       ),
       body: SafeArea(
         bottom: false,
@@ -49,7 +50,7 @@ class StoresListView extends StatelessWidget {
                       child: Text(
                         'No businesses yet. Add one and link a SIM to enable auto-replies for that line.',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(color: const Color(0xFF454652)),
+                        style: GoogleFonts.inter(color: theme.colorScheme.onSurfaceVariant),
                       ),
                     ),
                   );
@@ -256,90 +257,164 @@ class _StoreCard extends StatelessWidget {
   final VoidCallback onDelete;
 
   static const Color _activeGreen = Color(0xFF2E7D32);
-  static const Color _inactiveGrey = Color(0xFF757575);
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Material(
-      color: Colors.white,
+      color: theme.cardColor,
       borderRadius: BorderRadius.circular(16),
       elevation: 2,
       shadowColor: Colors.black26,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: onOpenEdit,
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        store.name,
-                        style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(
-                            effectiveActive ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
-                            size: 18,
-                            color: effectiveActive ? _activeGreen : _inactiveGrey,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              statusLabel,
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: effectiveActive ? _activeGreen : _inactiveGrey,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(50)),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: onOpenEdit,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          store.name,
+                          style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w800, color: theme.colorScheme.onSurface),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(
+                              effectiveActive ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+                              size: 18,
+                              color: effectiveActive ? _activeGreen : theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                statusLabel,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: effectiveActive ? _activeGreen : theme.colorScheme.onSurfaceVariant,
+                                ),
                               ),
+                            ),
+                          ],
+                        ),
+                        if (store.subscriptionId != null && !effectiveActive) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Linked: ${controller.simSlotLabelForSubscription(store.subscriptionId!)}',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
                             ),
                           ),
                         ],
-                      ),
-                      if (store.subscriptionId != null && !effectiveActive) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Linked: ${controller.simSlotLabelForSubscription(store.subscriptionId!)}',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: const Color(0xFF9E9E9E),
-                          ),
-                        ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            Switch(
-              value: effectiveActive,
-              trackColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return _activeGreen.withValues(alpha: 0.45);
-                }
-                return null;
-              }),
-              thumbColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) return _activeGreen;
-                return null;
-              }),
-              onChanged: (v) => onToggle(v),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFBA1A1A)),
-              onPressed: onDelete,
-            ),
-          ],
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.beach_access_rounded,
+                      color: store.vacationMode ? _activeGreen : theme.colorScheme.onSurfaceVariant.withAlpha(128),
+                    ),
+                    tooltip: store.vacationMode ? 'Vacation Mode: ON' : 'Vacation Mode: OFF',
+                    onPressed: () {
+                      controller.toggleVacationMode(store.id, !store.vacationMode);
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_note_rounded,
+                      color: store.vacationMessage.isNotEmpty 
+                          ? theme.colorScheme.primary 
+                          : theme.colorScheme.onSurfaceVariant.withAlpha(128),
+                    ),
+                    tooltip: 'Edit Vacation Message',
+                    onPressed: () => _editVacationMessage(context, controller, store),
+                  ),
+                ],
+              ),
+              Switch(
+                value: effectiveActive,
+                trackColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return _activeGreen.withAlpha(114);
+                  }
+                  return theme.colorScheme.outlineVariant;
+                }),
+                thumbColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) return _activeGreen;
+                  return theme.colorScheme.onSurfaceVariant;
+                }),
+                onChanged: (v) => onToggle(v),
+              ),
+              IconButton(
+                icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error),
+                onPressed: onDelete,
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  void _editVacationMessage(BuildContext context, StoresController controller, ReplyStore store) {
+    final theme = Theme.of(context);
+    final textController = TextEditingController(text: store.vacationMessage);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: theme.cardColor,
+          title: Text(
+            'Vacation Message',
+            style: GoogleFonts.manrope(
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          content: TextField(
+            controller: textController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'Enter your vacation auto-reply...',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('Cancel', style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.primary),
+              onPressed: () {
+                controller.setVacationMessage(store.id, textController.text.trim());
+                Navigator.of(ctx).pop();
+              },
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
     );
   }
 }

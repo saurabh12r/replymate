@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
+import android.provider.Telephony
 import android.app.role.RoleManager
 import android.telephony.SmsManager
 import android.telephony.SubscriptionManager
@@ -32,9 +33,20 @@ class MainActivity : FlutterActivity() {
     private val activityLogChannel = "replymate/activity_log"
     private val autoReplyEventsChannel = "replymate/auto_reply_events"
 
+    private var pendingSmsDefaultResult: MethodChannel.Result? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.d(TAG, "MainActivity.onCreate")
         super.onCreate(savedInstanceState)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_DEFAULT_SMS) {
+            val isDefault = Telephony.Sms.getDefaultSmsPackage(applicationContext) == applicationContext.packageName
+            pendingSmsDefaultResult?.success(isDefault)
+            pendingSmsDefaultResult = null
+        }
     }
 
     override fun onPostResume() {
@@ -242,30 +254,43 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
-                "requestDefaultSmsRole" -> {
+                "isDefaultSmsApp" -> {
                     try {
+                        val isDefault = Telephony.Sms.getDefaultSmsPackage(applicationContext) == applicationContext.packageName
+                        result.success(isDefault)
+                    } catch (e: Exception) {
+                        result.error("check_failed", e.message, null)
+                    }
+                }
+
+                "requestDefaultSmsApp" -> {
+                    try {
+                        val isAlreadyDefault = Telephony.Sms.getDefaultSmsPackage(applicationContext) == applicationContext.packageName
+                        if (isAlreadyDefault) {
+                            result.success(true)
+                            return@setMethodCallHandler
+                        }
+
+                        pendingSmsDefaultResult = result
+                        
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                             val roleManager = getSystemService(RoleManager::class.java)
                             if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_SMS)) {
                                 val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS)
-                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                startActivity(intent)
+                                startActivityForResult(intent, REQUEST_CODE_DEFAULT_SMS)
                             } else {
-                                // Fallback: open default apps settings if role is not available.
-                                val intent = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                startActivity(intent)
+                                val intent = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)
+                                startActivityForResult(intent, REQUEST_CODE_DEFAULT_SMS)
                             }
                         } else {
-                            val intent = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            startActivity(intent)
+                            val intent = Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT)
+                            intent.putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, applicationContext.packageName)
+                            startActivityForResult(intent, REQUEST_CODE_DEFAULT_SMS)
                         }
-                        result.success(true)
                     } catch (e: Exception) {
                         result.error("intent_failed", e.message, null)
+                        pendingSmsDefaultResult?.success(false)
+                        pendingSmsDefaultResult = null
                     }
                 }
 
@@ -385,5 +410,6 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val TAG = "ReplyMateMainActivity"
+        private const val REQUEST_CODE_DEFAULT_SMS = 10101
     }
 }

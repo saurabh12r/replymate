@@ -16,11 +16,6 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
 
   static const Color _primary = Color(0xFF24389C);
   static const Color _primaryContainer = Color(0xFF3F51B5);
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-  static const Color _secondary = Color(0xFF006A6A);
-  static const Color _outlineVariant = Color(0xFFC5C5D4);
-  static const Color _error = Color(0xFFBA1A1A);
 
   @override
   Widget build(BuildContext context) {
@@ -34,38 +29,46 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
             controller.selectedFilter.value,
           );
           final insights = ActivityLogInsights.compute(logs);
-          return CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: _buildHeader(context, logs),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.all(20),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    _buildPeriodSelector(),
-                    const SizedBox(height: 16),
-                    _buildInsightsRow(insights),
-                    const SizedBox(height: 12),
-                    _buildTopContactCard(insights),
-                    const SizedBox(height: 20),
-                    if (!snap.hasLogsInPeriod) ...[
-                      _buildNoActivityCard(),
-                      const SizedBox(height: 24),
-                    ] else ...[
-                      _buildKpiRow(snap),
-                      const SizedBox(height: 20),
-                      _buildChartCard(snap),
-                      const SizedBox(height: 20),
-                      _buildTopChannels(snap),
-                      const SizedBox(height: 20),
-                      _buildStatGrid(snap),
-                      const SizedBox(height: 24),
-                    ],
-                  ]),
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 840),
+                child: CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: _buildHeader(context, logs),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.all(20),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          _buildPeriodSelector(context),
+                          const SizedBox(height: 16),
+                          _buildInsightsRow(context, insights),
+                          const SizedBox(height: 12),
+                          _buildTopContactCard(context, insights),
+                          const SizedBox(height: 20),
+                          if (!snap.hasLogsInPeriod) ...[
+                            _buildNoActivityCard(context),
+                            const SizedBox(height: 24),
+                          ] else ...[
+                            _buildKpiRow(context, snap),
+                            const SizedBox(height: 20),
+                            _buildChartCard(context, snap),
+                            const SizedBox(height: 20),
+                            _buildTopChannels(context, snap),
+                            const SizedBox(height: 20),
+                            _buildStatGrid(context, snap),
+                            const SizedBox(height: 24),
+                          ],
+                        ]),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           );
         });
       },
@@ -117,46 +120,71 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
     );
   }
 
-  Widget _buildInsightsRow(ActivityLogInsights i) {
-    return Row(
-      children: [
-        Expanded(
-          child: _InsightChip(
+  Widget _buildInsightsRow(BuildContext context, ActivityLogInsights i) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final children = [
+          _InsightChip(
             label: 'All-time replies',
             value: '${i.totalRepliesSentAllTime}',
             icon: Icons.send_rounded,
-            color: _primary,
+            color: Theme.of(context).colorScheme.primary,
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _InsightChip(
+          _InsightChip(
             label: 'Today',
             value: '${i.repliesToday}',
             icon: Icons.today_rounded,
-            color: _secondary,
+            color: const Color(0xFF006A6A),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _InsightChip(
+          _InsightChip(
             label: '7 days',
             value: '${i.repliesLast7Days}',
             icon: Icons.date_range_rounded,
             color: const Color(0xFFE65100),
           ),
-        ),
-      ],
+        ];
+
+        if (constraints.maxWidth < 360) {
+          return Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: children[0]),
+                  const SizedBox(width: 8),
+                  Expanded(child: children[1]),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: children[2]),
+                ],
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: children[0]),
+            const SizedBox(width: 8),
+            Expanded(child: children[1]),
+            const SizedBox(width: 8),
+            Expanded(child: children[2]),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildTopContactCard(ActivityLogInsights i) {
+  Widget _buildTopContactCard(BuildContext context, ActivityLogInsights i) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _outlineVariant, width: 1.1),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(50), width: 1.1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withAlpha(6),
@@ -171,10 +199,10 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: _primary.withAlpha(18),
+              color: theme.colorScheme.primary.withAlpha(18),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.person_pin_rounded, color: _primary, size: 22),
+            child: Icon(Icons.person_pin_rounded, color: theme.colorScheme.primary, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -185,7 +213,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
                   'Most contacted number',
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    color: _onSurfaceVariant,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -194,7 +222,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
                   style: GoogleFonts.manrope(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: _onSurface,
+                    color: theme.colorScheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -207,7 +235,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
             style: GoogleFonts.inter(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: _primary,
+              color: theme.colorScheme.primary,
             ),
           ),
         ],
@@ -215,7 +243,8 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
     );
   }
 
-  Widget _buildPeriodSelector() {
+  Widget _buildPeriodSelector(BuildContext context) {
+    final theme = Theme.of(context);
     return Obx(() {
       final selected = controller.selectedFilter.value;
       return Row(
@@ -235,12 +264,12 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
                   decoration: BoxDecoration(
                     color: selected == AnalyticsNavController.filters[i]
                         ? _primary
-                        : Colors.white,
+                        : theme.cardColor,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: selected == AnalyticsNavController.filters[i]
                           ? _primary
-                          : _outlineVariant,
+                          : theme.colorScheme.outlineVariant.withAlpha(50),
                       width: 1.2,
                     ),
                     boxShadow: selected == AnalyticsNavController.filters[i]
@@ -260,8 +289,8 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: selected == AnalyticsNavController.filters[i]
-                          ? Colors.white
-                          : _onSurfaceVariant,
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -273,11 +302,12 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
     });
   }
 
-  Widget _buildNoActivityCard() {
+  Widget _buildNoActivityCard(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -289,14 +319,14 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
       ),
       child: Column(
         children: [
-          Icon(Icons.insights_rounded, size: 56, color: _outlineVariant),
+          Icon(Icons.insights_rounded, size: 56, color: theme.colorScheme.outlineVariant),
           const SizedBox(height: 16),
           Text(
             'No activity',
             style: GoogleFonts.manrope(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: _onSurface,
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -305,7 +335,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 13,
-              color: _onSurfaceVariant,
+              color: theme.colorScheme.onSurfaceVariant,
               height: 1.4,
             ),
           ),
@@ -314,44 +344,76 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
     );
   }
 
-  Widget _buildKpiRow(ActivityAnalyticsSnapshot snap) {
+  Widget _buildKpiRow(BuildContext context, ActivityAnalyticsSnapshot snap) {
     final sent = snap.replySentCount;
     final sentLabel =
         sent >= 1000 ? '${(sent / 1000).toStringAsFixed(1)}k' : '$sent';
     final effLabel = snap.hasEfficiencyDenominator
         ? '${snap.efficiencyPercent.round()}%'
         : '—';
-    return Row(
-      children: [
-        _KpiCard(
-          value: sentLabel,
-          label: 'Total Sent',
-          icon: Icons.send_rounded,
-          color: _primary,
-        ),
-        const SizedBox(width: 10),
-        _KpiCard(
-          value: effLabel,
-          label: 'Efficiency',
-          icon: Icons.verified_rounded,
-          color: _secondary,
-        ),
-        const SizedBox(width: 10),
-        _KpiCard(
-          value: '$sent/$kAnalyticsResponseGoalTarget',
-          label: 'Response Goal',
-          icon: Icons.track_changes_rounded,
-          color: const Color(0xFFE65100),
-        ),
-      ],
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final children = [
+          _KpiCard(
+            value: sentLabel,
+            label: 'Total Sent',
+            icon: Icons.send_rounded,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          _KpiCard(
+            value: effLabel,
+            label: 'Efficiency',
+            icon: Icons.verified_rounded,
+            color: const Color(0xFF006A6A),
+          ),
+          _KpiCard(
+            value: '$sent/$kAnalyticsResponseGoalTarget',
+            label: 'Response Goal',
+            icon: Icons.track_changes_rounded,
+            color: const Color(0xFFE65100),
+          ),
+        ];
+
+        if (constraints.maxWidth < 360) {
+          return Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: children[0]),
+                  const SizedBox(width: 10),
+                  Expanded(child: children[1]),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: children[2]),
+                ],
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: children[0]),
+            const SizedBox(width: 10),
+            Expanded(child: children[1]),
+            const SizedBox(width: 10),
+            Expanded(child: children[2]),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildChartCard(ActivityAnalyticsSnapshot snap) {
+  Widget _buildChartCard(BuildContext context, ActivityAnalyticsSnapshot snap) {
     final maxCount = snap.barBuckets
         .map((b) => b.count)
         .fold<int>(0, (a, b) => a > b ? a : b);
     final hasReplies = snap.replySentCount > 0;
+    final theme = Theme.of(context);
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 250),
@@ -359,7 +421,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
         key: ValueKey(controller.selectedFilter.value),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -379,7 +441,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
-                    color: _onSurface,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 const Spacer(),
@@ -387,7 +449,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: _primary.withAlpha(180),
+                    color: theme.colorScheme.primary.withAlpha(180),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -396,7 +458,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
                   'Replies (local time)',
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    color: _onSurfaceVariant,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -407,7 +469,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
                 'No replies in this period — chart shows zeroed slots.',
                 style: GoogleFonts.inter(
                   fontSize: 12,
-                  color: _onSurfaceVariant,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -416,7 +478,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
               height: 200,
               child: _RepliesBarChart(
                 buckets: snap.barBuckets,
-                barColor: _primary,
+                barColor: theme.colorScheme.primary,
                 maxY: maxCount > 0 ? maxCount.toDouble() : 1,
               ),
             ),
@@ -426,7 +488,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
     );
   }
 
-  Widget _buildTopChannels(ActivityAnalyticsSnapshot snap) {
+  Widget _buildTopChannels(BuildContext context, ActivityAnalyticsSnapshot snap) {
     final rows = <_ChannelData>[
       _ChannelData('Live Chat', 0, 'chat', '—'),
       _ChannelData('Email Automation', 0, 'email', '—'),
@@ -445,13 +507,14 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
     ];
     final maxCount = rows.map((r) => r.count).reduce((a, b) => a > b ? a : b);
     final denom = maxCount > 0 ? maxCount : 1;
+    final theme = Theme.of(context);
 
-    const colors = [_primary, _secondary, Color(0xFF25D366), Color(0xFFE65100)];
+    final colors = [theme.colorScheme.primary, const Color(0xFF006A6A), const Color(0xFF25D366), const Color(0xFFE65100)];
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -469,7 +532,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
             style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: _onSurface,
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 16),
@@ -501,40 +564,55 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
     }
   }
 
-  Widget _buildStatGrid(ActivityAnalyticsSnapshot snap) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.5,
-      children: [
-        _MiniStatCard(
-          icon: Icons.call_rounded,
-          label: 'Total Calls',
-          value: '${snap.totalCalls}',
-          color: _primary,
-        ),
-        _MiniStatCard(
-          icon: Icons.phone_missed_rounded,
-          label: 'Missed Calls',
-          value: '${snap.missedCalls}',
-          color: _error,
-        ),
-        _MiniStatCard(
-          icon: Icons.forum_rounded,
-          label: 'WhatsApp Calls',
-          value: '${snap.whatsappCalls}',
-          color: const Color(0xFF25D366),
-        ),
-        _MiniStatCard(
-          icon: Icons.send_rounded,
-          label: 'Replies Sent',
-          value: '${snap.repliesSent}',
-          color: _secondary,
-        ),
-      ],
+  Widget _buildStatGrid(BuildContext context, ActivityAnalyticsSnapshot snap) {
+    final theme = Theme.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = 2;
+        double childAspectRatio = 1.5;
+        if (constraints.maxWidth > 600) {
+          crossAxisCount = 4;
+          childAspectRatio = 1.8;
+        } else if (constraints.maxWidth < 350) {
+          crossAxisCount = 1;
+          childAspectRatio = 3.5;
+        }
+
+        return GridView.count(
+          crossAxisCount: crossAxisCount,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: childAspectRatio,
+          children: [
+            _MiniStatCard(
+              icon: Icons.call_rounded,
+              label: 'Total Calls',
+              value: '${snap.totalCalls}',
+              color: theme.colorScheme.primary,
+            ),
+            _MiniStatCard(
+              icon: Icons.phone_missed_rounded,
+              label: 'Missed Calls',
+              value: '${snap.missedCalls}',
+              color: theme.colorScheme.error,
+            ),
+            _MiniStatCard(
+              icon: Icons.forum_rounded,
+              label: 'WhatsApp Calls',
+              value: '${snap.whatsappCalls}',
+              color: const Color(0xFF25D366),
+            ),
+            _MiniStatCard(
+              icon: Icons.send_rounded,
+              label: 'Replies Sent',
+              value: '${snap.repliesSent}',
+              color: const Color(0xFF006A6A),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -645,17 +723,15 @@ class _InsightChip extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFC5C5D4).withAlpha(100)),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(50)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -664,10 +740,12 @@ class _InsightChip extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: _onSurface,
+              color: theme.colorScheme.onSurface,
               height: 1,
             ),
           ),
@@ -676,10 +754,11 @@ class _InsightChip extends StatelessWidget {
             label,
             style: GoogleFonts.inter(
               fontSize: 9,
-              color: _onSurfaceVariant,
+              color: theme.colorScheme.onSurfaceVariant,
               height: 1.1,
             ),
             maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -725,54 +804,54 @@ class _KpiCard extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(8),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: color.withAlpha(20),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: color.withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, size: 16, color: color),
+            child: Icon(icon, size: 16, color: color),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.manrope(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onSurface,
+              height: 1,
             ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: GoogleFonts.manrope(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: _onSurface,
-                height: 1,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: GoogleFonts.inter(fontSize: 10, color: _onSurfaceVariant),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(fontSize: 10, color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }
@@ -825,7 +904,7 @@ class _RepliesBarChart extends StatelessWidget {
                 v == v.roundToDouble() ? '${v.toInt()}' : '',
                 style: GoogleFonts.inter(
                   fontSize: 9,
-                  color: _AnalyticsColors.onSurfaceVariant,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -843,7 +922,7 @@ class _RepliesBarChart extends StatelessWidget {
                     buckets[i].label,
                     style: GoogleFonts.inter(
                       fontSize: 9,
-                      color: _AnalyticsColors.onSurfaceVariant,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 );
@@ -887,9 +966,6 @@ class _RepliesBarChart extends StatelessWidget {
   }
 }
 
-class _AnalyticsColors {
-  static const onSurfaceVariant = Color(0xFF454652);
-}
 
 class _ChannelRow extends StatelessWidget {
   const _ChannelRow({
@@ -906,12 +982,9 @@ class _ChannelRow extends StatelessWidget {
   final Color color;
   final IconData icon;
 
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-  static const Color _outlineVariant = Color(0xFFC5C5D4);
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Row(
       children: [
         Container(
@@ -936,14 +1009,14 @@ class _ChannelRow extends StatelessWidget {
                     style: GoogleFonts.manrope(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: _onSurface,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   Text(
                     trailing,
                     style: GoogleFonts.inter(
                       fontSize: 11,
-                      color: _onSurfaceVariant,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -954,7 +1027,7 @@ class _ChannelRow extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: fraction.clamp(0.0, 1.0),
                   minHeight: 6,
-                  backgroundColor: _outlineVariant.withAlpha(80),
+                  backgroundColor: theme.colorScheme.outlineVariant.withAlpha(80),
                   valueColor: AlwaysStoppedAnimation<Color>(color),
                 ),
               ),
@@ -979,15 +1052,13 @@ class _MiniStatCard extends StatelessWidget {
   final String value;
   final Color color;
 
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -1016,18 +1087,22 @@ class _MiniStatCard extends StatelessWidget {
               children: [
                 Text(
                   value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.manrope(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: _onSurface,
+                    color: theme.colorScheme.onSurface,
                     height: 1,
                   ),
                 ),
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 10,
-                    color: _onSurfaceVariant,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],

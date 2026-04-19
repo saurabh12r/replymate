@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/services/auth/user_repository.dart';
 import 'user_model.dart';
@@ -33,6 +34,18 @@ class ProfileNavController extends GetxController {
   void onInit() {
     super.onInit();
     _bindProfile();
+    _loadSavedTheme();
+  }
+
+  Future<void> _loadSavedTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final idx = prefs.getInt('theme_mode');
+    if (idx != null) {
+      final saved = ThemeMode.values[idx.clamp(0, ThemeMode.values.length - 1)];
+      themeMode.value = saved;
+      // Apply it in case the OS resolved a different value at startup.
+      Get.changeThemeMode(saved);
+    }
   }
 
   Future<void> _bindProfile() async {
@@ -105,10 +118,32 @@ class ProfileNavController extends GetxController {
     Get.offAllNamed(Routes.logout);
   }
 
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  // Default: follow the OS. Cycles: system → light → dark → system.
+  final Rx<ThemeMode> themeMode = ThemeMode.system.obs;
+
+  /// Whether the current effective theme is dark (used for the toggle label).
+  bool get isDarkMode => Get.isDarkMode;
+
   @override
   void onClose() {
     _profileSubscription?.cancel();
     super.onClose();
+  }
+
+  void setThemeMode(ThemeMode mode) {
+    themeMode.value = mode;
+    Get.changeThemeMode(mode);
+    SharedPreferences.getInstance().then((p) => p.setInt('theme_mode', mode.index));
+  }
+
+  void toggleTheme() {
+    final next = switch (themeMode.value) {
+      ThemeMode.system => ThemeMode.light,
+      ThemeMode.light  => ThemeMode.dark,
+      ThemeMode.dark   => ThemeMode.system,
+    };
+    setThemeMode(next);
   }
 }
 

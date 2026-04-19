@@ -5,8 +5,7 @@ abstract class Routes {
   static const login = '/login';
   static const signup = '/signup';
   static const otp = '/otp';
-  static const permissionsSetup = '/permissions-setup';
-  static const permissionError = '/permission-error';
+
   static const dashboard = '/dashboard';
   // Deep-push screens (above dashboard)
   static const reports = '/reports';

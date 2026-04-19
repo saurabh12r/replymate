@@ -69,7 +69,11 @@ class PermissionService {
   }
 
   Future<PermissionStatus> _requestSmsPermissions() async {
-    return Permission.sms.request();
+    final status = await Permission.sms.request();
+    if (status.isPermanentlyDenied) {
+      await openAppSettings();
+    }
+    return status;
   }
 
   Future<PermissionStatus> _requestCallLogPermissions() async {

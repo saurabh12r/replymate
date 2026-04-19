@@ -6,7 +6,7 @@ import 'package:get/get.dart';
 import '../../core/services/auth/phone_auth_service.dart';
 import '../../core/services/auth/user_repository.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/services/local/onboarding_state_service.dart';
+
 import '../otp/otp_controller.dart';
 
 /// LoginController
@@ -20,7 +20,7 @@ class LoginController extends GetxController {
 
   final UserRepository _userRepository;
   final PhoneAuthService _phoneAuthService;
-  final OnboardingStateService _onboardingStateService = Get.find<OnboardingStateService>();
+
 
   final phoneController = TextEditingController();
 
@@ -94,10 +94,7 @@ class LoginController extends GetxController {
           }
         },
         onVerificationCompleted: (_) {
-          final route = _onboardingStateService.isFirstTimeUser
-              ? Routes.permissionsSetup
-              : Routes.dashboard;
-          Get.offAllNamed(route);
+          Get.offAllNamed(Routes.dashboard);
         },
         onFailed: (message) {
           errorMessage.value = message;

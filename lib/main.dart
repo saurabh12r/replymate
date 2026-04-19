@@ -16,6 +16,7 @@ import 'core/services/auth/user_repository.dart';
 import 'core/services/blocked/is_blocked_sync_service.dart';
 import 'core/services/local/onboarding_state_service.dart';
 import 'firebase_options.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   runZonedGuarded(() async {
@@ -68,7 +69,14 @@ Future<void> main() async {
       Get.put<IsBlockedSyncService>(IsBlockedSyncService(), permanent: true);
     }
 
-    runApp(const ReplyMateApp());
+    // Restore persisted theme BEFORE runApp so there is no flash.
+    final prefs = await SharedPreferences.getInstance();
+    final savedModeIndex = prefs.getInt('theme_mode');
+    final initialThemeMode = savedModeIndex != null
+        ? ThemeMode.values[savedModeIndex.clamp(0, ThemeMode.values.length - 1)]
+        : ThemeMode.system;
+
+    runApp(ReplyMateApp(initialThemeMode: initialThemeMode));
 
     unawaited(_postRunAppBootstrap());
   }, (error, stack) {
@@ -161,7 +169,9 @@ Future<void> _syncContactFilterToNativeSafe() async {
 }
 
 class ReplyMateApp extends StatefulWidget {
-  const ReplyMateApp({super.key});
+  const ReplyMateApp({super.key, this.initialThemeMode = ThemeMode.system});
+
+  final ThemeMode initialThemeMode;
 
   @override
   State<ReplyMateApp> createState() => _ReplyMateAppState();
@@ -195,6 +205,8 @@ class _ReplyMateAppState extends State<ReplyMateApp> with WidgetsBindingObserver
       title: 'ReplyMate',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: widget.initialThemeMode,
       initialRoute: AppPages.initial,
       getPages: AppPages.routes,
     );

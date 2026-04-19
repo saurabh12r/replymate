@@ -74,6 +74,10 @@ class ReplyStore {
     required this.replyRejectedCall,
     required this.replyOutgoingAnswered,
     required this.replyOutgoingUnanswered,
+    required this.enableDaysSetup,
+    required this.selectedDays,
+    required this.vacationMode,
+    required this.vacationMessage,
     required this.templates,
     required this.eventTemplateIds,
   });
@@ -89,6 +93,10 @@ class ReplyStore {
   final bool replyRejectedCall;
   final bool replyOutgoingAnswered;
   final bool replyOutgoingUnanswered;
+  final bool enableDaysSetup;
+  final List<int> selectedDays;
+  final bool vacationMode;
+  final String vacationMessage;
   final List<ReplyTemplate> templates;
   final Map<String, String> eventTemplateIds;
 
@@ -138,6 +146,10 @@ class ReplyStore {
       'replyRejectedCall': replyRejectedCall,
       'replyOutgoingAnswered': replyOutgoingAnswered,
       'replyOutgoingUnanswered': replyOutgoingUnanswered,
+      'enableDaysSetup': enableDaysSetup,
+      'selectedDays': selectedDays,
+      'vacationMode': vacationMode,
+      'vacationMessage': vacationMessage,
       'templates': templates.map((t) => t.toJson()).toList(),
       'eventTemplateIds': eventTemplateIds,
     };
@@ -180,6 +192,18 @@ class ReplyStore {
     // Legacy field migration: old "replyOutgoingCall" → both new outgoing toggles.
     final legacyOutToggle = m['replyOutgoingCall'] == true;
 
+    final selectedDaysRaw = m['selectedDays'];
+    final selectedDays = <int>[];
+    if (selectedDaysRaw is List) {
+      for (final d in selectedDaysRaw) {
+        if (d is int) {
+          selectedDays.add(d);
+        } else if (d is num) {
+          selectedDays.add(d.toInt());
+        }
+      }
+    }
+
     return ReplyStore(
       id: m['id']?.toString() ?? '',
       name: m['name']?.toString() ?? 'Business',
@@ -192,6 +216,10 @@ class ReplyStore {
       replyRejectedCall: m['replyRejectedCall'] == true,
       replyOutgoingAnswered: m['replyOutgoingAnswered'] == true || (m['replyOutgoingAnswered'] == null && legacyOutToggle),
       replyOutgoingUnanswered: m['replyOutgoingUnanswered'] == true || (m['replyOutgoingUnanswered'] == null && legacyOutToggle),
+      enableDaysSetup: m['enableDaysSetup'] == true,
+      selectedDays: selectedDays,
+      vacationMode: m['vacationMode'] == true,
+      vacationMessage: m['vacationMessage']?.toString() ?? '',
       templates: templates,
       eventTemplateIds: eventMap,
     );
@@ -210,6 +238,10 @@ class ReplyStore {
     bool? replyRejectedCall,
     bool? replyOutgoingAnswered,
     bool? replyOutgoingUnanswered,
+    bool? enableDaysSetup,
+    List<int>? selectedDays,
+    bool? vacationMode,
+    String? vacationMessage,
     List<ReplyTemplate>? templates,
     Map<String, String>? eventTemplateIds,
   }) {
@@ -225,6 +257,10 @@ class ReplyStore {
       replyRejectedCall: replyRejectedCall ?? this.replyRejectedCall,
       replyOutgoingAnswered: replyOutgoingAnswered ?? this.replyOutgoingAnswered,
       replyOutgoingUnanswered: replyOutgoingUnanswered ?? this.replyOutgoingUnanswered,
+      enableDaysSetup: enableDaysSetup ?? this.enableDaysSetup,
+      selectedDays: selectedDays ?? this.selectedDays,
+      vacationMode: vacationMode ?? this.vacationMode,
+      vacationMessage: vacationMessage ?? this.vacationMessage,
       templates: templates ?? this.templates,
       eventTemplateIds: eventTemplateIds ?? this.eventTemplateIds,
     );

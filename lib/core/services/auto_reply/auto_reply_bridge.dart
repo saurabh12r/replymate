@@ -78,9 +78,16 @@ class AutoReplyBridge {
     await _channel.invokeMethod('requestIgnoreBatteryOptimizations');
   }
 
-  /// Prompts user to set this app as the default SMS app (Android 10+ via RoleManager).
-  Future<void> requestDefaultSmsRole() async {
-    await _channel.invokeMethod('requestDefaultSmsRole');
+  /// Checks if the app is currently the default SMS app without prompting.
+  Future<bool> isDefaultSmsApp() async {
+    final result = await _channel.invokeMethod<bool>('isDefaultSmsApp');
+    return result ?? false;
+  }
+
+  /// Prompts user to set this app as the default SMS app (Android 10+ via RoleManager, older via ACTION_CHANGE_DEFAULT).
+  Future<bool> requestDefaultSmsApp() async {
+    final result = await _channel.invokeMethod<bool>('requestDefaultSmsApp');
+    return result ?? false;
   }
 
   Future<void> setThrottleEnabled(bool enabled) async {

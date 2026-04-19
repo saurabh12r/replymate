@@ -58,6 +58,10 @@ class StoresController extends GetxController {
       replyRejectedCall: false,
       replyOutgoingAnswered: false,
       replyOutgoingUnanswered: false,
+      enableDaysSetup: false,
+      selectedDays: [],
+      vacationMode: false,
+      vacationMessage: '',
       templates: templates,
       eventTemplateIds: {
         ReplyStoreEventKeys.missedCall: ids[0],
@@ -163,6 +167,22 @@ class StoresController extends GetxController {
   Future<void> setStoreActive(String storeId, bool active) async {
     final next = stores
         .map((s) => s.id == storeId ? s.copyWith(active: active) : s)
+        .toList();
+    await saveAll(next);
+  }
+
+  /// Sets [vacationMode] for a store quickly.
+  Future<void> toggleVacationMode(String storeId, bool vacationMode) async {
+    final next = stores
+        .map((s) => s.id == storeId ? s.copyWith(vacationMode: vacationMode) : s)
+        .toList();
+    await saveAll(next);
+  }
+
+  /// Sets [vacationMessage] for a store quickly.
+  Future<void> setVacationMessage(String storeId, String vacationMessage) async {
+    final next = stores
+        .map((s) => s.id == storeId ? s.copyWith(vacationMessage: vacationMessage) : s)
         .toList();
     await saveAll(next);
   }

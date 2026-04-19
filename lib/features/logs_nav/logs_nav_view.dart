@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../core/activity/activity_date_utils.dart';
 import '../../core/activity/activity_log.dart';
@@ -20,19 +21,14 @@ class LogsNavView extends GetView<LogsNavController> {
 
   static const Color _primary = Color(0xFF24389C);
   static const Color _primaryContainer = Color(0xFF3F51B5);
-  static const Color _surface = Color(0xFFF8F9FA);
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-  static const Color _outlineVariant = Color(0xFFC5C5D4);
-  static const Color _error = Color(0xFFBA1A1A);
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         _buildHeader(context),
-        _buildDateFilterRow(),
-        _buildTypeFilterRow(),
+        _buildDateFilterRow(context),
+        _buildTypeFilterRow(context),
         Expanded(child: _buildLogList(context)),
       ],
     );
@@ -145,10 +141,11 @@ class LogsNavView extends GetView<LogsNavController> {
     });
   }
 
-  Widget _buildDateFilterRow() {
+  Widget _buildDateFilterRow(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       height: 48,
-      color: _surface,
+      color: theme.colorScheme.surfaceContainerHighest.withAlpha(50),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -165,16 +162,16 @@ class LogsNavView extends GetView<LogsNavController> {
                 alignment: Alignment.center,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: selected ? _primaryContainer : Colors.white,
+                  color: selected ? theme.colorScheme.primaryContainer : theme.cardColor,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: selected ? _primaryContainer : _outlineVariant,
+                    color: selected ? theme.colorScheme.primaryContainer : theme.colorScheme.outlineVariant,
                     width: 1.2,
                   ),
                   boxShadow: selected
                       ? [
                           BoxShadow(
-                            color: _primary.withAlpha(35),
+                            color: theme.colorScheme.primary.withAlpha(35),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           )
@@ -186,7 +183,7 @@ class LogsNavView extends GetView<LogsNavController> {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : _onSurfaceVariant,
+                    color: selected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -208,10 +205,11 @@ class LogsNavView extends GetView<LogsNavController> {
     }
   }
 
-  Widget _buildTypeFilterRow() {
+  Widget _buildTypeFilterRow(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       height: 48,
-      color: _surface,
+      color: theme.colorScheme.surfaceContainerHighest.withAlpha(50),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -228,16 +226,16 @@ class LogsNavView extends GetView<LogsNavController> {
                 alignment: Alignment.center,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: selected ? _primary : Colors.white,
+                  color: selected ? theme.colorScheme.primary : theme.cardColor,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: selected ? _primary : _outlineVariant,
+                    color: selected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
                     width: 1.2,
                   ),
                   boxShadow: selected
                       ? [
                           BoxShadow(
-                            color: _primary.withAlpha(40),
+                            color: theme.colorScheme.primary.withAlpha(40),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           )
@@ -249,7 +247,7 @@ class LogsNavView extends GetView<LogsNavController> {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: selected ? Colors.white : _onSurfaceVariant,
+                    color: selected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -276,6 +274,7 @@ class LogsNavView extends GetView<LogsNavController> {
   }
 
   Widget _buildLogList(BuildContext context) {
+    final theme = Theme.of(context);
     return ValueListenableBuilder<Box<ActivityLog>>(
       valueListenable: ActivityLogService.instance.box.listenable(),
       builder: (context, box, _) {
@@ -296,6 +295,7 @@ class LogsNavView extends GetView<LogsNavController> {
 
           if (sorted.isEmpty) {
             return _emptyState(
+              context,
               title: 'No activity yet',
               subtitle: 'Call events will appear here when they occur.',
             );
@@ -305,6 +305,7 @@ class LogsNavView extends GetView<LogsNavController> {
             if (dateFilter == LogFilterType.today &&
                 !sorted.any((e) => isToday(e.timestamp))) {
               return _emptyState(
+                context,
                 title: 'No activity today',
                 subtitle: 'Nothing logged for the current day yet.',
               );
@@ -312,11 +313,13 @@ class LogsNavView extends GetView<LogsNavController> {
             if (dateFilter == LogFilterType.week &&
                 !sorted.any((e) => isWithin7Days(e.timestamp))) {
               return _emptyState(
+                context,
                 title: 'No activity this week',
                 subtitle: 'Nothing in the last 7 days.',
               );
             }
             return _emptyState(
+              context,
               title: 'No matching activity',
               subtitle: 'Try a different filter or search.',
             );
@@ -336,11 +339,11 @@ class LogsNavView extends GetView<LogsNavController> {
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.only(right: 20),
                     decoration: BoxDecoration(
-                      color: _error.withAlpha(40),
+                      color: theme.colorScheme.error.withAlpha(40),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Icon(Icons.delete_outline_rounded,
-                        color: _error),
+                    child: Icon(Icons.delete_outline_rounded,
+                        color: theme.colorScheme.error),
                   ),
                   onDismissed: (_) =>
                       ActivityLogService.instance.deleteLog(log.id),
@@ -357,28 +360,47 @@ class LogsNavView extends GetView<LogsNavController> {
     );
   }
 
-  Widget _emptyState({required String title, required String subtitle}) {
+  Widget _emptyState(BuildContext context, {required String title, required String subtitle}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.history_rounded, size: 64, color: _outlineVariant),
-            const SizedBox(height: 16),
+            // Dim slightly in dark mode so the animation doesn't feel too bright;
+            // no colour filtering — that would paint it as a flat solid block.
+            Opacity(
+              opacity: isDark ? 0.75 : 1.0,
+              child: Lottie.asset(
+                'assets/Empty State.lottie',
+                width: 220,
+                height: 220,
+                fit: BoxFit.contain,
+                repeat: true,
+                frameRate: FrameRate.max,
+                errorBuilder: (ctx, err, st) => Icon(
+                  Icons.history_rounded,
+                  size: 64,
+                  color: theme.colorScheme.outlineVariant,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             Text(
               title,
               style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: _onSurface,
+                color: theme.colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
               subtitle,
-              style: GoogleFonts.inter(fontSize: 13, color: _onSurfaceVariant),
+              style: GoogleFonts.inter(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
           ],
@@ -388,8 +410,10 @@ class LogsNavView extends GetView<LogsNavController> {
   }
 
   void _showDetailSheet(BuildContext context, ActivityLog log) {
+    final theme = Theme.of(context);
     showModalBottomSheet<void>(
       context: context,
+      backgroundColor: theme.scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -404,23 +428,24 @@ class LogsNavView extends GetView<LogsNavController> {
               style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: _onSurface,
+                color: theme.colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
-            _detailRow('Name', activityLogDisplayName(log)),
-            _detailRow('Number', activityLogDisplayPhone(log)),
-            _detailRow('Type', activityLogTypeLabel(log.type)),
-            _detailRow('Time', log.timestamp.toLocal().toString()),
-            _detailRow('Auto-reply', log.replied ? 'Replied' : 'No Reply'),
-            _detailRow('Id', log.id),
+            _detailRow(context, 'Name', activityLogDisplayName(log)),
+            _detailRow(context, 'Number', activityLogDisplayPhone(log)),
+            _detailRow(context, 'Type', activityLogTypeLabel(log.type)),
+            _detailRow(context, 'Time', log.timestamp.toLocal().toString()),
+            _detailRow(context, 'Auto-reply', log.replied ? 'Replied' : 'No Reply'),
+            _detailRow(context, 'Id', log.id),
           ],
         ),
       ),
     );
   }
 
-  Widget _detailRow(String k, String v) {
+  Widget _detailRow(BuildContext context, String k, String v) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -433,14 +458,14 @@ class LogsNavView extends GetView<LogsNavController> {
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: _onSurfaceVariant,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ),
           Expanded(
             child: Text(
               v,
-              style: GoogleFonts.inter(fontSize: 13, color: _onSurface),
+              style: GoogleFonts.inter(fontSize: 13, color: theme.colorScheme.onSurface),
             ),
           ),
         ],
@@ -484,19 +509,14 @@ class ActivityLogCard extends StatelessWidget {
   final ActivityLog log;
   final VoidCallback? onLongPress;
 
-  static const Color _primary = Color(0xFF24389C);
   static const Color _secondary = Color(0xFF006A6A);
-  static const Color _error = Color(0xFFBA1A1A);
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-  static const Color _outlineVariant = Color(0xFFC5C5D4);
 
-  Color get _typeColor {
+  Color _typeColor(ThemeData theme) {
     switch (log.type) {
       case EventType.incomingCall:
-        return _primary;
+        return theme.colorScheme.primary;
       case EventType.missedCall:
-        return _error;
+        return theme.colorScheme.error;
       case EventType.whatsappCall:
         return const Color(0xFF25D366);
       case EventType.busyCall:
@@ -553,6 +573,8 @@ class ActivityLogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final typeColor = _typeColor(theme);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -561,8 +583,9 @@ class ActivityLogCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(50)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withAlpha(8),
@@ -575,13 +598,13 @@ class ActivityLogCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 23,
-                backgroundColor: _typeColor.withAlpha(28),
+                backgroundColor: typeColor.withAlpha(28),
                 child: Text(
                   _initials,
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
-                    color: _typeColor,
+                    color: typeColor,
                   ),
                 ),
               ),
@@ -595,7 +618,7 @@ class ActivityLogCard extends StatelessWidget {
                       style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: _onSurface,
+                        color: theme.colorScheme.onSurface,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -605,7 +628,7 @@ class ActivityLogCard extends StatelessWidget {
                       activityLogDisplayPhone(log),
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: _onSurfaceVariant,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -613,13 +636,13 @@ class ActivityLogCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Icon(_typeIcon, size: 14, color: _typeColor),
+                        Icon(_typeIcon, size: 14, color: typeColor),
                         const SizedBox(width: 4),
                         Text(
                           _typeLineLabel(log.type),
                           style: GoogleFonts.inter(
                             fontSize: 12,
-                            color: _typeColor,
+                            color: typeColor,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -631,7 +654,7 @@ class ActivityLogCard extends StatelessWidget {
                         log.messageSent,
                         style: GoogleFonts.inter(
                           fontSize: 11,
-                          color: _onSurfaceVariant,
+                          color: theme.colorScheme.onSurfaceVariant,
                           height: 1.2,
                         ),
                         maxLines: 2,
@@ -648,7 +671,7 @@ class ActivityLogCard extends StatelessWidget {
                     formatTimeAgo(log.timestamp),
                     style: GoogleFonts.inter(
                       fontSize: 11,
-                      color: _onSurfaceVariant,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -658,7 +681,7 @@ class ActivityLogCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: log.replied
                           ? _secondary.withAlpha(22)
-                          : _outlineVariant.withAlpha(60),
+                          : theme.colorScheme.outlineVariant.withAlpha(60),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -666,7 +689,7 @@ class ActivityLogCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: log.replied ? _secondary : _onSurfaceVariant,
+                        color: log.replied ? _secondary : theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),

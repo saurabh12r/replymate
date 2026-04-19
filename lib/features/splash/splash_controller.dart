@@ -3,13 +3,12 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/services/local/onboarding_state_service.dart';
+
 
 /// SplashController
 /// Stitch Screen ID: b434f8b18ba444febc349eae4f82895b
 class SplashController extends GetxController {
-  final OnboardingStateService _onboardingStateService =
-      Get.find<OnboardingStateService>();
+
 
   Timer? _fallbackTimer;
   bool _navigated = false;
@@ -34,10 +33,7 @@ class SplashController extends GetxController {
     _fallbackTimer = Timer(const Duration(seconds: 5), () {
       if (_navigated) return;
       _navigated = true;
-      final route = _onboardingStateService.isFirstTimeUser
-          ? Routes.permissionsSetup
-          : Routes.dashboard;
-      Get.offNamed(route);
+      Get.offNamed(Routes.dashboard);
     });
 
     // Give Flutter a moment to render first frame, then navigate.
@@ -56,12 +52,9 @@ class SplashController extends GetxController {
         return;
       }
 
-      final route = _onboardingStateService.isFirstTimeUser
-          ? Routes.permissionsSetup
-          : Routes.dashboard;
       _fallbackTimer?.cancel();
       _navigated = true;
-      Get.offNamed(route);
+      Get.offNamed(Routes.dashboard);
     });
   }
 

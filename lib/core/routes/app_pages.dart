@@ -7,10 +7,7 @@ import '../../features/signup/signup_view.dart';
 import '../../features/signup/signup_binding.dart';
 import '../../features/otp/otp_view.dart';
 import '../../features/otp/otp_binding.dart';
-import '../../features/permissions_setup/permissions_setup_view.dart';
-import '../../features/permissions_setup/permissions_setup_binding.dart';
-import '../../features/permission_error/permission_error_view.dart';
-import '../../features/permission_error/permission_error_binding.dart';
+
 import '../../features/dashboard_nav/dashboard_nav_view.dart';
 import '../../features/dashboard_nav/dashboard_nav_binding.dart';
 import '../../features/reports/reports_view.dart';
@@ -55,20 +52,7 @@ class AppPages {
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),
     ),
-    GetPage(
-      name: Routes.permissionsSetup,
-      page: () => const PermissionsSetupView(),
-      binding: PermissionsSetupBinding(),
-      transition: Transition.rightToLeft,
-      transitionDuration: const Duration(milliseconds: 300),
-    ),
-    GetPage(
-      name: Routes.permissionError,
-      page: () => const PermissionErrorView(),
-      binding: PermissionErrorBinding(),
-      transition: Transition.rightToLeft,
-      transitionDuration: const Duration(milliseconds: 300),
-    ),
+
     // Dashboard entry point — DashboardNavView owns bottom nav + IndexedStack
     GetPage(
       name: Routes.dashboard,

@@ -15,8 +15,6 @@ import '../stores/stores_list_view.dart';
 class DashboardNavView extends GetView<DashboardNavController> {
   const DashboardNavView({super.key});
 
-  static const Color _outlineVariant = Color(0xFFC5C5D4);
-
   static const _tabs = [
     (Icons.dashboard_rounded, 'Dashboard'),
     (Icons.list_alt_rounded, 'Logs'),
@@ -27,7 +25,7 @@ class DashboardNavView extends GetView<DashboardNavController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Obx(() => IndexedStack(
               index: controller.selectedIndex.value,
@@ -39,15 +37,16 @@ class DashboardNavView extends GetView<DashboardNavController> {
               ],
             )),
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: _buildBottomNav(context),
     );
   }
 
-  Widget _buildBottomNav() {
+  Widget _buildBottomNav(BuildContext context) {
+    final theme = Theme.of(context);
     return Obx(() => Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: _outlineVariant.withAlpha(80), width: 1)),
+            color: theme.cardColor,
+            border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(50), width: 1)),
             boxShadow: [
               BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 12, offset: const Offset(0, -4)),
             ],
@@ -89,11 +88,12 @@ class _NavItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  static const Color _primary = Color(0xFF24389C);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onSurfaceVariant = theme.colorScheme.onSurfaceVariant;
+    
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -101,7 +101,7 @@ class _NavItem extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? _primary.withAlpha(15) : Colors.transparent,
+          color: selected ? primary.withAlpha(25) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -110,7 +110,7 @@ class _NavItem extends StatelessWidget {
             AnimatedScale(
               scale: selected ? 1.1 : 1.0,
               duration: const Duration(milliseconds: 200),
-              child: Icon(icon, size: 22, color: selected ? _primary : _onSurfaceVariant),
+              child: Icon(icon, size: 22, color: selected ? primary : onSurfaceVariant),
             ),
             const SizedBox(height: 3),
             Text(
@@ -118,7 +118,7 @@ class _NavItem extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 10,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                color: selected ? _primary : _onSurfaceVariant,
+                color: selected ? primary : onSurfaceVariant,
               ),
             ),
           ],

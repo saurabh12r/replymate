@@ -25,11 +25,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
   static const Color _primary = Color(0xFF24389C);
   static const Color _success = Color(0xFF2E7D32);
   static const Color _primaryContainer = Color(0xFF3F51B5);
-  static const Color _surface = Color(0xFFF8F9FA);
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
   static const Color _secondary = Color(0xFF006A6A);
-  static const Color _outlineVariant = Color(0xFFC5C5D4);
   static const Color _error = Color(0xFFBA1A1A);
 
   @override
@@ -49,9 +45,9 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
           padding: const EdgeInsets.all(20),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              _buildAutoReplyCard(),
+              _buildAutoReplyCard(context),
               const SizedBox(height: 20),
-              _buildSectionLabel('Today\'s Activity'),
+              _buildSectionLabel(context, 'Today\'s Activity'),
               const SizedBox(height: 12),
               _buildStatsGrid(),
               const SizedBox(height: 20),
@@ -148,11 +144,13 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
     );
   }
 
-  Widget _buildAutoReplyCard() {
+  Widget _buildAutoReplyCard(BuildContext context) {
+    final theme = Theme.of(context);
     return Obx(() => Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(50)),
             boxShadow: [
               BoxShadow(color: Colors.black.withAlpha(12), blurRadius: 16, offset: const Offset(0, 4)),
             ],
@@ -168,14 +166,14 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                       height: 44,
                       decoration: BoxDecoration(
                         color: controller.autoReplyEnabled.value
-                            ? _primary.withAlpha(20)
-                            : _outlineVariant.withAlpha(60),
+                            ? theme.colorScheme.primary.withAlpha(20)
+                            : theme.colorScheme.outlineVariant.withAlpha(60),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
                         Icons.auto_awesome_rounded,
                         size: 22,
-                        color: controller.autoReplyEnabled.value ? _primary : _onSurfaceVariant,
+                        color: controller.autoReplyEnabled.value ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -185,7 +183,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                         children: [
                           Text(
                             'Auto Reply',
-                            style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w800, color: _onSurface),
+                            style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w800, color: theme.colorScheme.onSurface),
                           ),
                           Row(
                             children: [
@@ -197,7 +195,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                                   shape: BoxShape.circle,
                                   color: controller.autoReplyEnabled.value
                                       ? const Color(0xFF2E7D32)
-                                      : _outlineVariant,
+                                      : theme.colorScheme.outlineVariant,
                                 ),
                               ),
                               Text(
@@ -206,7 +204,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                                   fontSize: 12,
                                   color: controller.autoReplyEnabled.value
                                       ? const Color(0xFF2E7D32)
-                                      : _onSurfaceVariant,
+                                      : theme.colorScheme.onSurfaceVariant,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -221,7 +219,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                       activeThumbColor: Colors.white,
                       activeTrackColor: _success,
                       inactiveThumbColor: Colors.white,
-                      inactiveTrackColor: _outlineVariant,
+                      inactiveTrackColor: theme.colorScheme.outlineVariant,
                     ),
                   ],
                 ),
@@ -282,7 +280,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                             line,
                             style: GoogleFonts.inter(
                               fontSize: 10,
-                              color: _onSurfaceVariant,
+                              color: theme.colorScheme.onSurfaceVariant,
                               height: 1.25,
                             ),
                             maxLines: 2,
@@ -297,9 +295,9 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: _surface,
+                  color: theme.colorScheme.surfaceContainerHighest.withAlpha(50),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _outlineVariant.withAlpha(100), width: 1),
+                  border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(100), width: 1),
                 ),
                 child: Obx(() {
                   final name = controller.activeBusinessName.value.trim();
@@ -309,11 +307,11 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.storefront_rounded, size: 16, color: _primary),
+                          Icon(Icons.storefront_rounded, size: 16, color: theme.colorScheme.primary),
                           const SizedBox(width: 6),
                           Text(
                             'Active Business',
-                            style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: _primary),
+                            style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: theme.colorScheme.primary),
                           ),
                         ],
                       ),
@@ -321,7 +319,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                         padding: const EdgeInsets.only(top: 4, left: 22),
                         child: Text(
                           'Default SMS SIM business, or your first active business.',
-                          style: GoogleFonts.inter(fontSize: 9, color: _onSurfaceVariant, height: 1.2),
+                          style: GoogleFonts.inter(fontSize: 9, color: theme.colorScheme.onSurfaceVariant, height: 1.2),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -332,7 +330,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                           style: GoogleFonts.manrope(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
-                            color: name.isEmpty ? _onSurfaceVariant : _onSurface,
+                            color: name.isEmpty ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -416,11 +414,12 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
 
   // Kept for future use; the "Quick Actions" section is currently hidden.
   // ignore: unused_element
-  Widget _buildQuickActions() {
-    const actions = [
+  Widget _buildQuickActions(BuildContext context) {
+    final theme = Theme.of(context);
+    final actions = [
       (Icons.edit_rounded, 'Edit Template', _primary),
       (Icons.history_rounded, 'View Logs', _secondary),
-      (Icons.tune_rounded, 'Settings', _onSurfaceVariant),
+      (Icons.tune_rounded, 'Settings', theme.colorScheme.onSurfaceVariant),
     ];
     return Row(
       children: [
@@ -432,7 +431,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                 margin: EdgeInsets.only(right: i < actions.length - 1 ? 8 : 0),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: theme.cardColor,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 10, offset: const Offset(0, 3))],
                 ),
@@ -441,7 +440,7 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
                   children: [
                     Icon(actions[i].$1, size: 22, color: actions[i].$3),
                     const SizedBox(height: 6),
-                    Text(actions[i].$2, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: _onSurface), textAlign: TextAlign.center),
+                    Text(actions[i].$2, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface), textAlign: TextAlign.center),
                   ],
                 ),
               ),
@@ -451,10 +450,10 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
     );
   }
 
-  Widget _buildSectionLabel(String label) {
+  Widget _buildSectionLabel(BuildContext context, String label) {
     return Text(
       label,
-      style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w800, color: _onSurface, letterSpacing: 0.1),
+      style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface, letterSpacing: 0.1),
     );
   }
 }
@@ -469,16 +468,15 @@ class _StatCard extends StatelessWidget {
   final String value;
   final Color color;
 
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(50)),
         boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(
@@ -491,9 +489,9 @@ class _StatCard extends StatelessWidget {
             child: Icon(icon, size: 18, color: color),
           ),
           const Spacer(),
-          Text(value, style: GoogleFonts.manrope(fontSize: 26, fontWeight: FontWeight.w800, color: _onSurface, height: 1)),
+          Text(value, style: GoogleFonts.manrope(fontSize: 26, fontWeight: FontWeight.w800, color: theme.colorScheme.onSurface, height: 1)),
           const SizedBox(height: 3),
-          Text(label, style: GoogleFonts.inter(fontSize: 11, color: _onSurfaceVariant)),
+          Text(label, style: GoogleFonts.inter(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
         ],
       ),
     );

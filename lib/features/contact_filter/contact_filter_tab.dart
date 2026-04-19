@@ -10,15 +10,11 @@ class ContactFilterTab extends GetView<ContactFilterController> {
   const ContactFilterTab({super.key});
 
   static const Color _primary = Color(0xFF24389C);
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-  static const Color _surface = Color(0xFFF8F9FA);
-  static const Color _outlineVariant = Color(0xFFC5C5D4);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _surface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: _primary,
@@ -43,7 +39,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
                 slivers: [
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    sliver: SliverToBoxAdapter(child: _buildModeSection()),
+                    sliver: SliverToBoxAdapter(child: _buildModeSection(context)),
                   ),
                   if (showContact) ..._contactSlivers(context),
                 ],
@@ -97,7 +93,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
         sliver: SliverToBoxAdapter(
           child: Obx(() {
             if (!controller.contactPermissionGranted.value) {
-              return _permissionCard();
+              return _permissionCard(context);
             }
             if (controller.loadingContacts.value) {
               return const Padding(
@@ -106,7 +102,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
               );
             }
             if (!controller.hasCachedContacts) {
-              return _emptyCard();
+              return _emptyCard(context);
             }
             return const SizedBox.shrink();
           }),
@@ -133,15 +129,16 @@ class ContactFilterTab extends GetView<ContactFilterController> {
   }
 
   Widget _buildPhoneListItem(BuildContext context, int index) {
-    final borderSide = BorderSide(color: _outlineVariant.withAlpha(100));
+    final theme = Theme.of(context);
+    final borderSide = BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(100));
     if (index == 0) {
       return Obx(() {
         final busy = controller.loadingContacts.value;
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            border: Border.all(color: _outlineVariant.withAlpha(100)),
+            border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(100)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -185,10 +182,10 @@ class ContactFilterTab extends GetView<ContactFilterController> {
                             )
                           : null,
                       filled: true,
-                      fillColor: const Color(0xFFF8F9FA),
+                      fillColor: theme.scaffoldBackgroundColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: _outlineVariant),
+                        borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -200,7 +197,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
                   );
                 }),
               ),
-              Divider(height: 1, color: _outlineVariant.withAlpha(60)),
+              Divider(height: 1, color: theme.colorScheme.outlineVariant.withAlpha(60)),
             ],
           ),
         );
@@ -212,7 +209,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
         rowIndex == controller.visibleItemCount - 1 && !controller.hasMoreRows;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         border: Border(
           left: borderSide,
           right: borderSide,
@@ -226,7 +223,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (rowIndex > 0)
-            Divider(height: 1, color: _outlineVariant.withAlpha(60)),
+            Divider(height: 1, color: theme.colorScheme.outlineVariant.withAlpha(60)),
           _ContactFilterCheckRow(
             key: ValueKey<String>(row.digitsKey),
             row: row,
@@ -238,7 +235,8 @@ class ContactFilterTab extends GetView<ContactFilterController> {
     );
   }
 
-  Widget _radioRow({
+  Widget _radioRow(
+    BuildContext context, {
     required bool selected,
     required String title,
     required String subtitle,
@@ -260,7 +258,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
                   selected
                       ? Icons.radio_button_checked_rounded
                       : Icons.radio_button_off_rounded,
-                  color: selected ? _primary : _outlineVariant,
+                  color: selected ? _primary : Theme.of(context).colorScheme.outlineVariant,
                   size: 22,
                 ),
               ),
@@ -274,7 +272,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: _onSurface,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -282,7 +280,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
                       subtitle,
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: _onSurfaceVariant,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         height: 1.3,
                       ),
                     ),
@@ -296,13 +294,13 @@ class ContactFilterTab extends GetView<ContactFilterController> {
     );
   }
 
-  Widget _buildModeSection() {
+  Widget _buildModeSection(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _outlineVariant.withAlpha(100)),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withAlpha(100)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withAlpha(6),
@@ -326,12 +324,14 @@ class ContactFilterTab extends GetView<ContactFilterController> {
             ),
             const SizedBox(height: 8),
             _radioRow(
+              context,
               selected: m == ContactFilterMode.all,
               title: 'Send SMS to All Callers',
               subtitle: 'SMS will be sent to all callers',
               onTap: () => controller.onModeChanged(ContactFilterMode.all),
             ),
             _radioRow(
+              context,
               selected: m == ContactFilterMode.onlySelected,
               title: 'Send SMS Only to Selected Contacts',
               subtitle: 'Only selected contacts will receive SMS',
@@ -339,6 +339,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
                   controller.onModeChanged(ContactFilterMode.onlySelected),
             ),
             _radioRow(
+              context,
               selected: m == ContactFilterMode.excludeSelected,
               title: 'Send SMS to All Except Selected Contacts',
               subtitle: 'Selected contacts will NOT receive SMS',
@@ -351,18 +352,18 @@ class ContactFilterTab extends GetView<ContactFilterController> {
     );
   }
 
-  Widget _permissionCard() {
+  Widget _permissionCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _outlineVariant.withAlpha(100)),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withAlpha(100)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(Icons.contact_page_outlined, size: 48, color: _outlineVariant),
+          Icon(Icons.contact_page_outlined, size: 48, color: Theme.of(context).colorScheme.outlineVariant),
           const SizedBox(height: 12),
           Text(
             'Contacts permission needed',
@@ -370,7 +371,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
             style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: _onSurface,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -379,7 +380,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 13,
-              color: _onSurfaceVariant,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               height: 1.35,
             ),
           ),
@@ -413,13 +414,13 @@ class ContactFilterTab extends GetView<ContactFilterController> {
     );
   }
 
-  Widget _emptyCard() {
+  Widget _emptyCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _outlineVariant.withAlpha(100)),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withAlpha(100)),
       ),
       child: Column(
         children: [
@@ -427,7 +428,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
             'No phone numbers found',
             style: GoogleFonts.manrope(
               fontWeight: FontWeight.w700,
-              color: _onSurface,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
@@ -436,7 +437,7 @@ class ContactFilterTab extends GetView<ContactFilterController> {
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 13,
-              color: _onSurfaceVariant,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           TextButton.icon(
@@ -469,8 +470,6 @@ class _ContactFilterCheckRow extends StatefulWidget {
 
 class _ContactFilterCheckRowState extends State<_ContactFilterCheckRow> {
   static const Color _primary = Color(0xFF24389C);
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
 
   late bool _checked;
 
@@ -511,14 +510,14 @@ class _ContactFilterCheckRowState extends State<_ContactFilterCheckRow> {
         style: GoogleFonts.manrope(
           fontWeight: FontWeight.w700,
           fontSize: 14,
-          color: _onSurface,
+          color: Theme.of(context).colorScheme.onSurface,
         ),
       ),
       subtitle: Text(
         widget.row.phoneDisplay,
         style: GoogleFonts.inter(
           fontSize: 13,
-          color: _onSurfaceVariant,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
       controlAffinity: ListTileControlAffinity.leading,

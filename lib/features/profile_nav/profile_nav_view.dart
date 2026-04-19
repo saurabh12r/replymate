@@ -22,10 +22,7 @@ class ProfileNavView extends GetView<ProfileNavController> {
   static const Color _primary = Color(0xFF24389C);
   static const Color _primaryContainer = Color(0xFF3F51B5);
   static const Color _secondary = Color(0xFF006A6A);
-  static const Color _onSurface = Color(0xFF191C1D);
   static const Color _onSurfaceVariant = Color(0xFF454652);
-  static const Color _outlineVariant = Color(0xFFC5C5D4);
-  static const Color _error = Color(0xFFBA1A1A);
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +33,7 @@ class ProfileNavView extends GetView<ProfileNavController> {
 
       if (!controller.isLoggedIn.value) {
         return _buildInfoState(
+          context,
           title: 'Login required',
           subtitle: 'Please login to view your profile.',
           actionLabel: 'Go to Login',
@@ -45,6 +43,7 @@ class ProfileNavView extends GetView<ProfileNavController> {
 
       if (controller.profileError.value.isNotEmpty) {
         return _buildInfoState(
+          context,
           title: 'Profile unavailable',
           subtitle: controller.profileError.value,
           actionLabel: 'Retry',
@@ -54,36 +53,40 @@ class ProfileNavView extends GetView<ProfileNavController> {
 
       if (!controller.hasProfileData.value) {
         return _buildInfoState(
+          context,
           title: 'No profile data found',
           subtitle: 'We could not find profile details for this account yet.',
         );
       }
 
-      return CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(child: _buildHeader()),
-          SliverPadding(
-            padding: const EdgeInsets.all(20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                _buildContactCard(),
-                const SizedBox(height: 20),
-                _buildSectionLabel('Account'),
-                const SizedBox(height: 10),
-                _buildOptionsList(),
-                const SizedBox(height: 20),
-                _buildSectionLabel('Support'),
-                const SizedBox(height: 10),
-                _buildSupportList(),
-                const SizedBox(height: 20),
-                _buildLogoutButton(),
-                const SizedBox(height: 24),
-                _buildVersionFooter(),
-                const SizedBox(height: 16),
-              ]),
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _buildHeader()),
+            SliverPadding(
+              padding: const EdgeInsets.all(20),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _buildContactCard(context),
+                  const SizedBox(height: 20),
+                  _buildSectionLabel(context, 'Account'),
+                  const SizedBox(height: 10),
+                  _buildOptionsList(),
+                  const SizedBox(height: 20),
+                  _buildSectionLabel(context, 'Support'),
+                  const SizedBox(height: 10),
+                  _buildSupportList(),
+                  const SizedBox(height: 20),
+                  _buildLogoutButton(context),
+                  const SizedBox(height: 24),
+                  _buildVersionFooter(context),
+                  const SizedBox(height: 16),
+                ]),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     });
   }
@@ -199,26 +202,28 @@ class ProfileNavView extends GetView<ProfileNavController> {
   }
 
   // ── Contact info card ──────────────────────────────────────────────────────
-  Widget _buildContactCard() {
+  Widget _buildContactCard(BuildContext context) {
     return Obx(() {
       final ph = controller.phone.value;
       final em = controller.email.value;
+      final theme = Theme.of(context);
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(50)),
           boxShadow: [BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 14, offset: const Offset(0, 4))],
         ),
         child: Column(
           children: [
             _ContactRow(icon: Icons.badge_rounded, label: 'Name', value: controller.userName.value, color: _secondary),
             const SizedBox(height: 12),
-            Divider(height: 1, color: _outlineVariant.withAlpha(80)),
+            Divider(height: 1, color: theme.colorScheme.outlineVariant.withAlpha(80)),
             const SizedBox(height: 12),
-            _ContactRow(icon: Icons.phone_rounded, label: 'Phone Number', value: ph, color: _primary),
+            _ContactRow(icon: Icons.phone_rounded, label: 'Phone Number', value: ph, color: theme.colorScheme.primary),
             const SizedBox(height: 12),
-            Divider(height: 1, color: _outlineVariant.withAlpha(80)),
+            Divider(height: 1, color: theme.colorScheme.outlineVariant.withAlpha(80)),
             const SizedBox(height: 12),
             _ContactRow(icon: Icons.email_rounded, label: 'Email Address', value: em, color: _secondary),
           ],
@@ -227,12 +232,14 @@ class ProfileNavView extends GetView<ProfileNavController> {
     });
   }
 
-  Widget _buildInfoState({
+  Widget _buildInfoState(
+    BuildContext context, {
     required String title,
     required String subtitle,
     String? actionLabel,
     VoidCallback? onTap,
   }) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -244,7 +251,7 @@ class ProfileNavView extends GetView<ProfileNavController> {
               style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: _onSurface,
+                color: theme.colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
@@ -253,7 +260,7 @@ class ProfileNavView extends GetView<ProfileNavController> {
               subtitle,
               style: GoogleFonts.inter(
                 fontSize: 13,
-                color: _onSurfaceVariant,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
@@ -280,6 +287,50 @@ class ProfileNavView extends GetView<ProfileNavController> {
           subtitle: 'App preferences & configuration',
           color: _primary,
           onTap: controller.navigateToSettings,
+        ),
+        _OptionItem(
+          icon: Icons.contrast_rounded,
+          label: 'Appearance',
+          subtitle: 'Light, Dark, or System default',
+          color: const Color(0xFF6D28D9),
+          trailing: Obx(() {
+            final mode = controller.themeMode.value;
+            return Builder(
+              builder: (ctx) {
+                final theme = Theme.of(ctx);
+                return SegmentedButton<ThemeMode>(
+                  style: SegmentedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    visualDensity: VisualDensity.compact,
+                    selectedBackgroundColor: const Color(0xFF6D28D9).withAlpha(30),
+                    selectedForegroundColor: const Color(0xFF6D28D9),
+                    foregroundColor: theme.colorScheme.onSurfaceVariant,
+                    side: BorderSide(color: theme.colorScheme.outlineVariant, width: 1),
+                  ),
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      icon: Icon(Icons.brightness_auto_rounded, size: 16),
+                      tooltip: 'System',
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      icon: Icon(Icons.light_mode_rounded, size: 16),
+                      tooltip: 'Light',
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      icon: Icon(Icons.dark_mode_rounded, size: 16),
+                      tooltip: 'Dark',
+                    ),
+                  ],
+                  selected: {mode},
+                  onSelectionChanged: (s) => controller.setThemeMode(s.first),
+                );
+              },
+            );
+          }),
         ),
         _OptionItem(
           icon: Icons.filter_alt_rounded,
@@ -340,7 +391,8 @@ class ProfileNavView extends GetView<ProfileNavController> {
   }
 
   // ── Logout button ──────────────────────────────────────────────────────────
-  Widget _buildLogoutButton() {
+  Widget _buildLogoutButton(BuildContext context) {
+    final theme = Theme.of(context);
     return Obx(() {
       final loading = controller.isLoggingOut.value;
       return GestureDetector(
@@ -349,19 +401,19 @@ class ProfileNavView extends GetView<ProfileNavController> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: _error.withAlpha(10),
+            color: theme.colorScheme.error.withAlpha(10),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _error.withAlpha(60), width: 1),
+            border: Border.all(color: theme.colorScheme.error.withAlpha(60), width: 1),
           ),
           child: Row(
             children: [
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(color: _error.withAlpha(15), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: theme.colorScheme.error.withAlpha(15), borderRadius: BorderRadius.circular(12)),
                 child: loading
-                    ? Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _error)))
-                    : const Icon(Icons.logout_rounded, size: 20, color: _error),
+                    ? Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.error)))
+                    : Icon(Icons.logout_rounded, size: 20, color: theme.colorScheme.error),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -370,16 +422,16 @@ class ProfileNavView extends GetView<ProfileNavController> {
                   children: [
                     Text(
                       loading ? 'Signing out…' : 'Sign Out',
-                      style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: _error),
+                      style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: theme.colorScheme.error),
                     ),
                     Text(
                       'You will be returned to the login screen',
-                      style: GoogleFonts.inter(fontSize: 11, color: _error.withAlpha(160)),
+                      style: GoogleFonts.inter(fontSize: 11, color: theme.colorScheme.error.withAlpha(160)),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios_rounded, size: 14, color: _error.withAlpha(120)),
+              Icon(Icons.arrow_forward_ios_rounded, size: 14, color: theme.colorScheme.error.withAlpha(120)),
             ],
           ),
         ),
@@ -388,24 +440,26 @@ class ProfileNavView extends GetView<ProfileNavController> {
   }
 
   // ── Section label ──────────────────────────────────────────────────────────
-  Widget _buildSectionLabel(String label) {
+  Widget _buildSectionLabel(BuildContext context, String label) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         label,
-        style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w800, color: _onSurfaceVariant, letterSpacing: 0.5),
+        style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w800, color: theme.colorScheme.onSurfaceVariant, letterSpacing: 0.5),
       ),
     );
   }
 
   // ── Version footer ─────────────────────────────────────────────────────────
-  Widget _buildVersionFooter() {
+  Widget _buildVersionFooter(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         children: [
-          Text('ReplyMate', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w800, color: _onSurfaceVariant)),
+          Text('ReplyMate', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w800, color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: 2),
-          Text('Version 1.0.0 · Build 100', style: GoogleFonts.inter(fontSize: 11, color: _outlineVariant)),
+          Text('Version 1.0.0 · Build 100', style: GoogleFonts.inter(fontSize: 11, color: theme.colorScheme.outlineVariant)),
         ],
       ),
     );
@@ -422,17 +476,15 @@ class _ContactRow extends StatelessWidget {
   final String value;
   final Color color;
 
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Row(
       children: [
         Container(
           width: 36,
           height: 36,
-          decoration: BoxDecoration(color: color.withAlpha(15), borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: color.withAlpha(25), borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, size: 18, color: color),
         ),
         const SizedBox(width: 12),
@@ -440,8 +492,8 @@ class _ContactRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: _onSurfaceVariant)),
-              Text(value, style: TextStyle(fontFamily: 'Manrope', fontSize: 13, fontWeight: FontWeight.w700, color: _onSurface)),
+              Text(label, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              Text(value, style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'Manrope', fontWeight: FontWeight.w700, color: theme.colorScheme.onSurface)),
             ],
           ),
         ),
@@ -456,21 +508,21 @@ class _OptionGroup extends StatelessWidget {
 
   final List<_OptionItem> items;
 
-  static const Color _outlineVariant = Color(0xFFC5C5D4);
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(50)),
         boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 10, offset: const Offset(0, 3))],
       ),
       child: Column(
         children: [
           for (int i = 0; i < items.length; i++) ...[
             items[i],
-            if (i < items.length - 1) Divider(height: 1, indent: 56, color: _outlineVariant.withAlpha(80)),
+            if (i < items.length - 1) Divider(height: 1, indent: 56, color: theme.colorScheme.outlineVariant.withAlpha(80)),
           ],
         ],
       ),
@@ -484,20 +536,20 @@ class _OptionItem extends StatelessWidget {
     required this.label,
     required this.subtitle,
     required this.color,
-    required this.onTap,
+    this.onTap,
+    this.trailing,
   });
 
   final IconData icon;
   final String label;
   final String subtitle;
   final Color color;
-  final VoidCallback onTap;
-
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
+  final VoidCallback? onTap;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -508,7 +560,7 @@ class _OptionItem extends StatelessWidget {
             Container(
               width: 38,
               height: 38,
-              decoration: BoxDecoration(color: color.withAlpha(15), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: color.withAlpha(25), borderRadius: BorderRadius.circular(10)),
               child: Icon(icon, size: 18, color: color),
             ),
             const SizedBox(width: 12),
@@ -516,12 +568,12 @@ class _OptionItem extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(fontFamily: 'Manrope', fontSize: 13, fontWeight: FontWeight.w700, color: _onSurface)),
-                  Text(subtitle, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _onSurfaceVariant)),
+                  Text(label, style: theme.textTheme.bodyMedium?.copyWith(fontFamily: 'Manrope', fontWeight: FontWeight.w700)),
+                  Text(subtitle, style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'Inter')),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, size: 20, color: color.withAlpha(160)),
+            trailing ?? Icon(Icons.chevron_right_rounded, size: 20, color: theme.colorScheme.onSurface.withAlpha(100)),
           ],
         ),
       ),

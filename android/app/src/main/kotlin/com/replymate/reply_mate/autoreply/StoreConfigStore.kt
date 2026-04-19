@@ -134,6 +134,10 @@ class StoreConfigStore(private val context: Context) {
                 replyRejectedCall = legacy.replyOnRejectedCall(),
                 replyOutgoingAnswered = legacy.replyOnOutgoingAnswered(),
                 replyOutgoingUnanswered = legacy.replyOnOutgoingUnanswered(),
+                enableDaysSetup = false,
+                selectedDays = emptyList(),
+                vacationMode = false,
+                vacationMessage = "",
                 templates = templates,
                 eventTemplateIds = eventMap,
             )
@@ -199,6 +203,15 @@ class StoreConfigStore(private val context: Context) {
 
             // Legacy field migration: old "replyOutgoingCall" → both new outgoing toggles.
             val legacyOutToggle = o.optBoolean("replyOutgoingCall", false)
+            
+            val enableDaysSetup = o.optBoolean("enableDaysSetup", false)
+            val selectedDays = mutableListOf<Int>()
+            val sda = o.optJSONArray("selectedDays")
+            if (sda != null) {
+                for (i in 0 until sda.length()) {
+                    selectedDays.add(sda.getInt(i))
+                }
+            }
 
             return StoreRecord(
                 id = o.optString("id", UUID.randomUUID().toString()),
@@ -212,6 +225,10 @@ class StoreConfigStore(private val context: Context) {
                 replyRejectedCall = o.optBoolean("replyRejectedCall", false),
                 replyOutgoingAnswered = o.optBoolean("replyOutgoingAnswered", legacyOutToggle),
                 replyOutgoingUnanswered = o.optBoolean("replyOutgoingUnanswered", legacyOutToggle),
+                enableDaysSetup = enableDaysSetup,
+                selectedDays = selectedDays,
+                vacationMode = o.optBoolean("vacationMode", false),
+                vacationMessage = o.optString("vacationMessage", ""),
                 templates = templates,
                 eventTemplateIds = eventMap,
             )
@@ -242,6 +259,14 @@ class StoreConfigStore(private val context: Context) {
             o.put("replyRejectedCall", s.replyRejectedCall)
             o.put("replyOutgoingAnswered", s.replyOutgoingAnswered)
             o.put("replyOutgoingUnanswered", s.replyOutgoingUnanswered)
+            o.put("enableDaysSetup", s.enableDaysSetup)
+            val sda = JSONArray()
+            for (d in s.selectedDays) {
+                sda.put(d)
+            }
+            o.put("selectedDays", sda)
+            o.put("vacationMode", s.vacationMode)
+            o.put("vacationMessage", s.vacationMessage)
             val ta = JSONArray()
             for (t in s.templates) {
                 val to = JSONObject()

@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../core/services/auth/phone_auth_service.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/services/local/onboarding_state_service.dart';
+
 
 /// OtpController
 /// Stitch Screen ID: 57e63680f2bb41daa9a7b0c10941fd6d
@@ -14,7 +14,7 @@ class OtpController extends GetxController {
       : _phoneAuthService = phoneAuthService ?? Get.find<PhoneAuthService>();
 
   final PhoneAuthService _phoneAuthService;
-  final OnboardingStateService _onboardingStateService = Get.find<OnboardingStateService>();
+
 
   // ── Arguments from Login ──────────────────────────────────────────────────
   late final String phoneNumber;
@@ -185,9 +185,6 @@ class OtpController extends GetxController {
   void goBack() => Get.back();
 
   void _navigatePostLogin() {
-    final route = _onboardingStateService.isFirstTimeUser
-        ? Routes.permissionsSetup
-        : Routes.dashboard;
-    Get.offAllNamed(route);
+    Get.offAllNamed(Routes.dashboard);
   }
 }

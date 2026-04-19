@@ -27,15 +27,12 @@ class SettingsView extends GetView<SettingsController> {
   static const Color _primaryContainer = Color(0xFF3F51B5);
   static const Color _secondary = Color(0xFF006A6A);
   static const Color _success = Color(0xFF2E7D32);
-  static const Color _onSurface = Color(0xFF191C1D);
-  static const Color _onSurfaceVariant = Color(0xFF454652);
-  static const Color _outlineVariant = Color(0xFFC5C5D4);
   static const Color _error = Color(0xFFBA1A1A);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -48,10 +45,12 @@ class SettingsView extends GetView<SettingsController> {
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
                         _buildSectionCard(
+                          context: context,
                           label: 'Automation',
                           icon: Icons.auto_mode_rounded,
                           children: [
                             _buildToggleRow(
+                              context: context,
                               title: 'Enable Auto Reply',
                               subtitle: 'Activate automated text responses',
                               icon: Icons.reply_rounded,
@@ -59,8 +58,9 @@ class SettingsView extends GetView<SettingsController> {
                               value: controller.autoReplyEnabled,
                               onToggle: controller.trySetAutoReplyEnabled,
                             ),
-                            _sectionDivider(),
+                            _sectionDivider(context),
                             _buildToggleRow(
+                              context: context,
                               title: 'Limit auto-replies (1 per hour per contact)',
                               subtitle:
                                   'Prevents sending multiple SMS to the same number within 1 hour',
@@ -73,11 +73,11 @@ class SettingsView extends GetView<SettingsController> {
                         const SizedBox(height: 16),
                         _buildBusinessesCard(context),
                         const SizedBox(height: 16),
-                        _buildPermissionsSection(),
+                        _buildPermissionsSection(context),
                         const SizedBox(height: 16),
-                        _buildLegalSection(),
+                        _buildLegalSection(context),
                         const SizedBox(height: 16),
-                        _buildDangerZone(),
+                        _buildDangerZone(context),
                         const SizedBox(height: 24),
                         _buildSaveButton(),
                         const SizedBox(height: 24),
@@ -139,13 +139,14 @@ class SettingsView extends GetView<SettingsController> {
 
   // ── Section card wrapper ───────────────────────────────────────────────────
   Widget _buildSectionCard({
+    required BuildContext context,
     required String label,
     required IconData icon,
     required List<Widget> children,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12, offset: const Offset(0, 3))],
       ),
@@ -173,12 +174,12 @@ class SettingsView extends GetView<SettingsController> {
     );
   }
 
-  Widget _sectionDivider() => Divider(height: 1, indent: 62, color: _outlineVariant.withAlpha(80));
+  Widget _sectionDivider(BuildContext context) => Divider(height: 1, indent: 62, color: Theme.of(context).colorScheme.outlineVariant.withAlpha(80));
 
   Widget _buildBusinessesCard(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12, offset: const Offset(0, 3)),
@@ -217,13 +218,13 @@ class SettingsView extends GetView<SettingsController> {
                         style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
-                          color: _onSurface,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Add businesses, link each to a SIM, and set custom reply messages.',
-                        style: GoogleFonts.inter(fontSize: 11, color: _onSurfaceVariant),
+                        style: GoogleFonts.inter(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -237,7 +238,7 @@ class SettingsView extends GetView<SettingsController> {
     );
   }
 
-  Widget _permStatusRow(String label, bool granted) {
+  Widget _permStatusRow(BuildContext context, String label, bool granted) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -251,7 +252,7 @@ class SettingsView extends GetView<SettingsController> {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.inter(fontSize: 12, color: _onSurface),
+              style: GoogleFonts.inter(fontSize: 12, color: Theme.of(context).colorScheme.onSurface),
             ),
           ),
           Text(
@@ -269,6 +270,7 @@ class SettingsView extends GetView<SettingsController> {
 
   // ── Reusable toggle row ────────────────────────────────────────────────────
   Widget _buildToggleRow({
+    required BuildContext context,
     required String title,
     required String subtitle,
     required IconData icon,
@@ -291,8 +293,8 @@ class SettingsView extends GetView<SettingsController> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: _onSurface)),
-                    Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: _onSurfaceVariant)),
+                    Text(title, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
+                    Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                   ],
                 ),
               ),
@@ -314,10 +316,10 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   // ── Permissions ─────────────────────────────────────────────────────────────
-  Widget _buildPermissionsSection() {
+  Widget _buildPermissionsSection(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12, offset: const Offset(0, 3))],
       ),
@@ -339,12 +341,13 @@ class SettingsView extends GetView<SettingsController> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    _permStatusRow('SMS send', controller.permSmsGranted.value),
                     _permStatusRow(
+                      context,
                       'Phone & call log',
                       controller.permPhoneCallLogsGranted.value,
                     ),
                     _permStatusRow(
+                      context,
                       'Notifications',
                       controller.permPostNotificationsGranted.value,
                     ),
@@ -374,7 +377,7 @@ class SettingsView extends GetView<SettingsController> {
                           Text('Re-check Permissions',
                               style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: _primary)),
                           Text('Verify call, SMS & notification access',
-                              style: GoogleFonts.inter(fontSize: 11, color: _onSurfaceVariant)),
+                              style: GoogleFonts.inter(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         ],
                       ),
                     ),
@@ -391,10 +394,10 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   // ── Legal section ──────────────────────────────────────────────────────────
-  Widget _buildLegalSection() {
+  Widget _buildLegalSection(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12, offset: const Offset(0, 3))],
       ),
@@ -413,13 +416,15 @@ class SettingsView extends GetView<SettingsController> {
           ),
           const SizedBox(height: 4),
           _buildLegalRow(
+            context: context,
             icon: Icons.privacy_tip_outlined,
             title: 'Privacy Policy',
             subtitle: 'How we handle your data',
             onTap: () => _launchUrl('https://replymate.app/privacy'),
           ),
-          _sectionDivider(),
+          _sectionDivider(context),
           _buildLegalRow(
+            context: context,
             icon: Icons.article_outlined,
             title: 'Terms of Service',
             subtitle: 'Usage terms and conditions',
@@ -432,6 +437,7 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   Widget _buildLegalRow({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -454,8 +460,8 @@ class SettingsView extends GetView<SettingsController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: _onSurface)),
-                  Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: _onSurfaceVariant)),
+                  Text(title, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
+                  Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 ],
               ),
             ),
@@ -474,10 +480,10 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   // ── Danger zone ────────────────────────────────────────────────────────────
-  Widget _buildDangerZone() {
+  Widget _buildDangerZone(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 12, offset: const Offset(0, 3))],
       ),
@@ -523,7 +529,7 @@ class SettingsView extends GetView<SettingsController> {
               ),
             ),
           ),
-          _sectionDivider(),
+          _sectionDivider(context),
           InkWell(
             onTap: controller.confirmDeleteAccount,
             borderRadius: BorderRadius.circular(20),
