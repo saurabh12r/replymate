@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/stores/reply_store_models.dart';
 import 'stores_controller.dart';
 
@@ -39,6 +41,7 @@ class _StoreEditViewState extends State<StoreEditView> {
   int? _subscriptionId;
   final Set<String> _groupKeys = {};
   final TextEditingController _groupTextCtrl = TextEditingController();
+  String? _imagePath; // local file path for the business image
 
   StoresController get _c => Get.find<StoresController>();
 
@@ -64,6 +67,7 @@ class _StoreEditViewState extends State<StoreEditView> {
     _vacationMode = s.vacationMode;
     _vacationMsgCtrl = TextEditingController(text: s.vacationMessage);
     _subscriptionId = s.subscriptionId;
+    _imagePath = s.imagePath;
     _msgCtrls = {
       for (final k in ReplyStoreEventKeys.all)
         k: TextEditingController(text: s.messageForEventKey(k) ?? ''),
@@ -95,6 +99,71 @@ class _StoreEditViewState extends State<StoreEditView> {
       }
     });
     Get.snackbar('Applied', 'Message linked to selected types.');
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 1024,
+    );
+    if (picked != null) {
+      setState(() => _imagePath = picked.path);
+    }
+  }
+
+  void _showImagePickerSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: _primary),
+                title: Text('Choose from gallery', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: _primary),
+                title: Text('Take a photo', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              if (_imagePath != null)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  title: Text('Remove image', style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() => _imagePath = null);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   bool _saved = false;
@@ -155,6 +224,7 @@ class _StoreEditViewState extends State<StoreEditView> {
       vacationMessage: _vacationMsgCtrl.text.trim(),
       templates: templates,
       eventTemplateIds: Map<String, String>.from(_eventTemplateIds),
+      imagePath: _imagePath,
     );
 
     final byId = <String, ReplyStore>{for (final s in _c.stores) s.id: s};
@@ -209,6 +279,82 @@ class _StoreEditViewState extends State<StoreEditView> {
             context,
             child: Column(
               children: [
+                // ── Business image (optional) ──────────────────────────
+                GestureDetector(
+                  onTap: _showImagePickerSheet,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    width: double.infinity,
+                    height: _imagePath != null ? 160 : 72,
+                    decoration: BoxDecoration(
+                      color: _imagePath != null
+                          ? Colors.transparent
+                          : _primary.withAlpha(14),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _primary.withAlpha(_imagePath != null ? 60 : 40),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: _imagePath != null
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(13),
+                                child: Image.file(
+                                  File(_imagePath!),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.broken_image_rounded,
+                                    size: 40,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Material(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: _showImagePickerSheet,
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(6),
+                                      child: Icon(
+                                        Icons.edit_rounded,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_photo_alternate_rounded,
+                                  color: _primary.withAlpha(180), size: 28),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Add business image (optional)',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: _primary.withAlpha(160),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // ── Business name ─────────────────────────────────────
                 TextField(
                   controller: _nameCtrl,
                   decoration: InputDecoration(

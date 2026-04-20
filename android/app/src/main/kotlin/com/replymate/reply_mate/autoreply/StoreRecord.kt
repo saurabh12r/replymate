@@ -25,6 +25,8 @@ data class StoreRecord(
     val templates: List<StoreTemplate>,
     /** Event key → template id */
     val eventTemplateIds: Map<String, String>,
+    /** Optional absolute path to a business image; when set the reply is sent as MMS. */
+    val imagePath: String? = null,
 ) {
     fun isEventEnabled(event: AutoReplyEvent): Boolean {
         if (enableDaysSetup) {

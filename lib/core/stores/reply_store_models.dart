@@ -80,6 +80,7 @@ class ReplyStore {
     required this.vacationMessage,
     required this.templates,
     required this.eventTemplateIds,
+    this.imagePath,
   });
 
   final String id;
@@ -99,6 +100,8 @@ class ReplyStore {
   final String vacationMessage;
   final List<ReplyTemplate> templates;
   final Map<String, String> eventTemplateIds;
+  /// Optional local file path to a business logo/image.
+  final String? imagePath;
 
   bool toggleForKey(String eventKey) {
     switch (eventKey) {
@@ -152,6 +155,7 @@ class ReplyStore {
       'vacationMessage': vacationMessage,
       'templates': templates.map((t) => t.toJson()).toList(),
       'eventTemplateIds': eventTemplateIds,
+      if (imagePath != null) 'imagePath': imagePath,
     };
   }
 
@@ -222,6 +226,7 @@ class ReplyStore {
       vacationMessage: m['vacationMessage']?.toString() ?? '',
       templates: templates,
       eventTemplateIds: eventMap,
+      imagePath: m['imagePath']?.toString(),
     );
   }
 
@@ -244,6 +249,8 @@ class ReplyStore {
     String? vacationMessage,
     List<ReplyTemplate>? templates,
     Map<String, String>? eventTemplateIds,
+    String? imagePath,
+    bool? clearImagePath,
   }) {
     return ReplyStore(
       id: id ?? this.id,
@@ -263,6 +270,7 @@ class ReplyStore {
       vacationMessage: vacationMessage ?? this.vacationMessage,
       templates: templates ?? this.templates,
       eventTemplateIds: eventTemplateIds ?? this.eventTemplateIds,
+      imagePath: clearImagePath == true ? null : (imagePath ?? this.imagePath),
     );
   }
 }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider paths for ReplyMate.
+  The cache-path entry exposes getCacheDir() so MmsSendHelper can share
+  temporary MMS images with the system MMS sender via content:// URIs.
+-->
+<paths>
+    <cache-path name="mms_images" path="." />
+</paths>

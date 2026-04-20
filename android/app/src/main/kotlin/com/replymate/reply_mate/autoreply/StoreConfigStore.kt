@@ -231,6 +231,7 @@ class StoreConfigStore(private val context: Context) {
                 vacationMessage = o.optString("vacationMessage", ""),
                 templates = templates,
                 eventTemplateIds = eventMap,
+                imagePath = o.optString("imagePath", null).takeIf { !it.isNullOrBlank() },
             )
         }
 
@@ -280,6 +281,9 @@ class StoreConfigStore(private val context: Context) {
                 em.put(k, v)
             }
             o.put("eventTemplateIds", em)
+            if (!s.imagePath.isNullOrBlank()) {
+                o.put("imagePath", s.imagePath)
+            }
             return o
         }
     }

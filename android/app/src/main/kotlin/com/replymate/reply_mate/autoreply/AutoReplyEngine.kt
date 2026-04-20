@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import com.replymate.reply_mate.activity.ActivityEventType
 import com.replymate.reply_mate.activity.ActivityLogPendingStore
 import com.replymate.reply_mate.events.ReplyMateEventEmitter
+import com.replymate.reply_mate.sms.MmsSendHelper
 import com.replymate.reply_mate.sms.SmsSendHelper
 import java.util.Calendar
 import java.util.UUID
@@ -149,21 +150,46 @@ object AutoReplyEngine {
         )
 
         return try {
-            val smsManager = resolveSmsManagerForSubscription(subscriptionId)
-            val parts = smsManager.divideMessage(message)
-            Log.d(
-                TAG,
-                "Calling sendSms: phone=$phoneNumber event=$event parts=${parts.size} logId=$logId subId=$subscriptionId"
-            )
-            SmsSendHelper.sendMultipartTextMessageWithSentCallback(
-                context,
-                smsManager,
-                phoneNumber,
-                parts,
-                logId
-            )
+            val imagePath = store.imagePath
+            if (!imagePath.isNullOrBlank()) {
+                // ── MMS path: image + text ────────────────────────────────────────
+                Log.d(TAG, "Sending MMS with image=$imagePath to $phoneNumber logId=$logId")
+                val mmsSent = MmsSendHelper.sendMmsWithImage(
+                    context = context,
+                    subscriptionId = subscriptionId,
+                    destinationAddress = phoneNumber,
+                    text = message,
+                    imagePath = imagePath,
+                )
+                if (mmsSent) {
+                    Log.d(TAG, "MMS dispatched successfully for phone=$phoneNumber")
+                } else {
+                    // Fallback to plain SMS
+                    Log.w(TAG, "MMS failed; falling back to SMS for phone=$phoneNumber")
+                    val smsManager = resolveSmsManagerForSubscription(subscriptionId)
+                    val parts = smsManager.divideMessage(message)
+                    SmsSendHelper.sendMultipartTextMessageWithSentCallback(
+                        context, smsManager, phoneNumber, parts, logId
+                    )
+                }
+            } else {
+                // ── Plain SMS path ────────────────────────────────────────────────
+                val smsManager = resolveSmsManagerForSubscription(subscriptionId)
+                val parts = smsManager.divideMessage(message)
+                Log.d(
+                    TAG,
+                    "Calling sendSms: phone=$phoneNumber event=$event parts=${parts.size} logId=$logId subId=$subscriptionId"
+                )
+                SmsSendHelper.sendMultipartTextMessageWithSentCallback(
+                    context,
+                    smsManager,
+                    phoneNumber,
+                    parts,
+                    logId
+                )
+            }
             updateThrottleState(context, phoneNumber)
-            Log.d(TAG, "SMS send triggered successfully for phone=$phoneNumber")
+            Log.d(TAG, "Reply send triggered successfully for phone=$phoneNumber")
             true
         } catch (e: Exception) {
             Log.e(TAG, "SMS send failed for phone=$phoneNumber event=$event", e)
