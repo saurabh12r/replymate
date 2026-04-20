@@ -6,6 +6,7 @@ import '../analytics_nav/analytics_nav_view.dart';
 import '../contact_filter/contact_filter_tab.dart';
 import '../stores/stores_controller.dart';
 import '../stores/stores_list_view.dart';
+import '../scheduled_messages/scheduled_messages_view.dart';
 import 'profile_nav_controller.dart';
 
 /// User Profile Nav View (tab content — no bottom nav of its own)
@@ -357,6 +358,13 @@ class ProfileNavView extends GetView<ProfileNavController> {
             }
             Get.to(() => const StoresListView());
           },
+        ),
+        _OptionItem(
+          icon: Icons.schedule_send_rounded,
+          label: 'Schedule Message',
+          subtitle: 'Set up SMS to be sent at specific times',
+          color: const Color(0xFFE91E63),
+          onTap: () => Get.to(() => const ScheduledMessagesView()),
         ),
       ],
     );

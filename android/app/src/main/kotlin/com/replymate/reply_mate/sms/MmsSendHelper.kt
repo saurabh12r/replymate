@@ -63,16 +63,21 @@ object MmsSendHelper {
 
             // 4. Build MMS PDU parts using ContentValues (Android MMS API)
             val contentUri = buildMmsPdu(appCtx, destinationAddress, text, imageUri)
-                ?: return false
+            if (contentUri == null) {
+                File(appCtx.filesDir, "mms_debug.txt").appendText("\n${java.util.Date()}: buildMmsPdu returned null (Not Default SMS App?)")
+                return false
+            }
 
             // 5. Send
             val smsManager = resolveSmsManager(subscriptionId)
             smsManager.sendMultimediaMessage(appCtx, contentUri, null, null, null)
 
             Log.d(TAG, "MMS dispatched to $destinationAddress")
+            File(appCtx.filesDir, "mms_debug.txt").appendText("\n${java.util.Date()}: MMS dispatched to $destinationAddress via sendMultimediaMessage")
             true
         } catch (e: Exception) {
             Log.e(TAG, "MMS send failed for $destinationAddress", e)
+            File(context.filesDir, "mms_debug.txt").appendText("\n${java.util.Date()}: Exception sending MMS: ${e.message}\n${Log.getStackTraceString(e)}")
             false
         }
     }

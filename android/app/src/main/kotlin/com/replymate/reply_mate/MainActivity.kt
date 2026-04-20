@@ -118,6 +118,78 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "scheduleSms" -> {
+                    try {
+                        val id = call.argument<String>("id") ?: return@setMethodCallHandler
+                        val phone = call.argument<String>("phoneNumber") ?: return@setMethodCallHandler
+                        val message = call.argument<String>("message") ?: return@setMethodCallHandler
+                        val timeMillis = call.argument<Long>("timeMillis") ?: return@setMethodCallHandler
+
+                        val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+                        val intent = Intent(applicationContext, com.replymate.reply_mate.receivers.ScheduledSmsReceiver::class.java).apply {
+                            putExtra(com.replymate.reply_mate.receivers.ScheduledSmsReceiver.EXTRA_ID, id)
+                            putExtra(com.replymate.reply_mate.receivers.ScheduledSmsReceiver.EXTRA_PHONE, phone)
+                            putExtra(com.replymate.reply_mate.receivers.ScheduledSmsReceiver.EXTRA_MESSAGE, message)
+                        }
+                        
+                        // We use the ID hash code as the pending intent request code so it's unique
+                        val requestCode = id.hashCode()
+                        val pendingIntent = android.app.PendingIntent.getBroadcast(
+                            applicationContext,
+                            requestCode,
+                            intent,
+                            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                        )
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            if (alarmManager.canScheduleExactAlarms()) {
+                                alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+                            } else {
+                                // Fallback if exact alarm permission is revoked
+                                alarmManager.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+                            }
+                        } else {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                alarmManager.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+                            } else {
+                                alarmManager.setExact(android.app.AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+                            }
+                        }
+
+                        Log.d(TAG, "Scheduled SMS id=$id for time=$timeMillis")
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to schedule SMS", e)
+                        result.error("schedule_failed", e.message, null)
+                    }
+                }
+
+                "cancelScheduledSms" -> {
+                    try {
+                        val id = call.argument<String>("id") ?: return@setMethodCallHandler
+                        val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+                        val intent = Intent(applicationContext, com.replymate.reply_mate.receivers.ScheduledSmsReceiver::class.java)
+                        
+                        val requestCode = id.hashCode()
+                        val pendingIntent = android.app.PendingIntent.getBroadcast(
+                            applicationContext,
+                            requestCode,
+                            intent,
+                            android.app.PendingIntent.FLAG_NO_CREATE or android.app.PendingIntent.FLAG_IMMUTABLE
+                        )
+
+                        if (pendingIntent != null) {
+                            alarmManager.cancel(pendingIntent)
+                            pendingIntent.cancel()
+                            Log.d(TAG, "Cancelled scheduled SMS id=$id")
+                        }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to cancel scheduled SMS", e)
+                        result.error("cancel_failed", e.message, null)
+                    }
+                }
+
                 "updateAutoReplyConfig" -> {
                     val autoReplyEnabled = call.argument<Boolean>("autoReplyEnabled") ?: false
                     val replyOnCallAnswered = call.argument<Boolean>("replyOnCallAnswered") ?: false
