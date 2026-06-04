@@ -1,0 +1,9 @@
+apply plugin: 'java'
+repositories {
+    mavenCentral()
+    google()
+    maven { url 'https://jitpack.io' }
+}
+dependencies {
+    implementation 'com.github.klinker24:android-smsmms:7.1.0'
+}

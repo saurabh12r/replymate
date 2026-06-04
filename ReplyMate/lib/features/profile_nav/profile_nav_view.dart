@@ -1,0 +1,987 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../core/routes/app_routes.dart';
+import '../../core/services/subscription/subscription_service.dart';
+import '../analytics_nav/analytics_nav_view.dart';
+import '../contact_filter/contact_filter_tab.dart';
+import '../stores/stores_controller.dart';
+import '../stores/stores_list_view.dart';
+import '../scheduled_messages/scheduled_messages_view.dart';
+import 'profile_nav_controller.dart';
+
+/// User Profile Nav View (tab content — no bottom nav of its own)
+/// Stitch Screen ID: 51d28699599a41debb374aff662d7311
+///
+/// Design (from Stitch):
+///  - Gradient header with avatar + name + role
+///  - Contact info: phone + email
+///  - Quick stats: 1.2k Smart Replies · 98% Accuracy · 42 Active Days
+///  - Options list: Settings · Help & Support · Logout
+class ProfileNavView extends GetView<ProfileNavController> {
+  const ProfileNavView({super.key});
+
+  static const Color _primary = Color(0xFF24389C);
+  static const Color _primaryContainer = Color(0xFF3F51B5);
+  static const Color _secondary = Color(0xFF006A6A);
+  static const Color _onSurfaceVariant = Color(0xFF454652);
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (controller.isLoadingProfile.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      if (!controller.isLoggedIn.value) {
+        return _buildInfoState(
+          context,
+          title: 'Login required',
+          subtitle: 'Please login to view your profile.',
+          actionLabel: 'Go to Login',
+          onTap: () => Get.offAllNamed(Routes.login),
+        );
+      }
+
+      if (controller.profileError.value.isNotEmpty) {
+        return _buildInfoState(
+          context,
+          title: 'Profile unavailable',
+          subtitle: controller.profileError.value,
+          actionLabel: 'Retry',
+          onTap: controller.reloadProfile,
+        );
+      }
+
+      if (!controller.hasProfileData.value) {
+        return _buildInfoState(
+          context,
+          title: 'No profile data found',
+          subtitle: 'We could not find profile details for this account yet.',
+        );
+      }
+
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _buildHeader()),
+            SliverPadding(
+              padding: const EdgeInsets.all(20),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _buildContactCard(context),
+                  const SizedBox(height: 16),
+                  _buildSubscriptionCard(context),
+                  const SizedBox(height: 20),
+                  _buildSectionLabel(context, 'Account'),
+                  const SizedBox(height: 10),
+                  _buildOptionsList(),
+                  const SizedBox(height: 20),
+                  _buildSectionLabel(context, 'Support'),
+                  const SizedBox(height: 10),
+                  _buildSupportList(),
+                  const SizedBox(height: 20),
+                  _buildLogoutButton(context),
+                  const SizedBox(height: 24),
+                  _buildVersionFooter(context),
+                  const SizedBox(height: 16),
+                ]),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  // ── Gradient header ────────────────────────────────────────────────────────
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1A2980), _primary, _primaryContainer],
+          stops: [0.0, 0.5, 1.0],
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Profile',
+                style: GoogleFonts.manrope(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              GestureDetector(
+                onTap: controller.navigateToSettings,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(31),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withAlpha(40)),
+                  ),
+                  child: const Icon(
+                    Icons.settings_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Avatar + name
+          Obx(() {
+            final name = controller.userName.value;
+            final role = controller.userRole.value;
+            // Derive initials
+            final parts = name.trim().split(' ');
+            final initials = parts.length >= 2
+                ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+                : parts[0].substring(0, 2).toUpperCase();
+            return Column(
+              children: [
+                Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    GestureDetector(
+                      onTap: controller.editProfile,
+                      child: Container(
+                        width: 82,
+                        height: 82,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withAlpha(31),
+                          border: Border.all(
+                            color: Colors.white.withAlpha(100),
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            initials,
+                            style: GoogleFonts.manrope(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: controller.editProfile,
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: _secondary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.edit_rounded,
+                          size: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  name,
+                  style: GoogleFonts.manrope(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (role.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(31),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      role,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.white.withAlpha(220),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubscriptionCard(BuildContext context) {
+    final theme = Theme.of(context);
+    return StreamBuilder<SubscriptionInfo>(
+      stream: SubscriptionService.instance.stream,
+      builder: (context, snap) {
+        final info = snap.data ?? SubscriptionInfo.unknown;
+        final isActive = info.status == SubscriptionStatus.active;
+        final statusColor = isActive
+            ? Colors.green.shade400
+            : info.status == SubscriptionStatus.pending
+            ? Colors.orange.shade400
+            : theme.colorScheme.error;
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isActive
+                  ? [
+                      const Color(0xFF0F1F6E),
+                      const Color(0xFF1A2980),
+                      const Color(0xFF24389C),
+                    ]
+                  : [Colors.grey.shade800, Colors.grey.shade700],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color:
+                    (isActive ? const Color(0xFF1A2980) : Colors.grey.shade800)
+                        .withAlpha(80),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Top row: plan ID (small) + status badge ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      info.planName.isNotEmpty
+                          ? 'Plan · ${info.planName}'
+                          : 'No Plan Assigned',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white38,
+                        letterSpacing: 0.5,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withAlpha(35),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusColor.withAlpha(120)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          info.statusLabel,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: statusColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              // ── Main big display: expiry ──
+              if (info.subscriptionEnd != null) ...[
+                Text(
+                  'Valid until',
+                  style: GoogleFonts.inter(fontSize: 12, color: Colors.white38),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _formatDate(info.subscriptionEnd!),
+                  style: GoogleFonts.manrope(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ] else ...[
+                Text(
+                  isActive ? 'Subscription Active' : 'No Subscription',
+                  style: GoogleFonts.manrope(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+              if (info.nextPlanId != null && info.nextPlanId!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade400.withAlpha(35),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.green.shade400.withAlpha(120)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.schedule_send_rounded,
+                        size: 14,
+                        color: Colors.green.shade400,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Next Plan: ${info.nextPlanName ?? info.nextPlanId}',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.green.shade400,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              // ── Bottom row: days remaining ──
+              Row(
+                children: [
+                  const Icon(
+                    Icons.schedule_rounded,
+                    size: 14,
+                    color: Colors.white38,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      info.expiryLabel.isNotEmpty
+                          ? info.expiryLabel
+                          : 'Contact admin to activate',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.white54,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (isActive && info.daysRemaining > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(18),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withAlpha(30)),
+                      ),
+                      child: Text(
+                        '${info.daysRemaining}d left',
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatDate(DateTime d) => '${d.day} ${_month(d.month)} ${d.year}';
+  String _month(int m) => const [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ][m - 1];
+
+  // ── Contact info card ──────────────────────────────────────────────────────
+  Widget _buildContactCard(BuildContext context) {
+    return Obx(() {
+      final ph = controller.phone.value;
+      final em = controller.email.value;
+      final theme = Theme.of(context);
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withAlpha(50),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(10),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            _ContactRow(
+              icon: Icons.badge_rounded,
+              label: 'Name',
+              value: controller.userName.value,
+              color: _secondary,
+            ),
+            const SizedBox(height: 12),
+            Divider(
+              height: 1,
+              color: theme.colorScheme.outlineVariant.withAlpha(80),
+            ),
+            const SizedBox(height: 12),
+            _ContactRow(
+              icon: Icons.phone_rounded,
+              label: 'Phone Number',
+              value: ph,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(height: 12),
+            Divider(
+              height: 1,
+              color: theme.colorScheme.outlineVariant.withAlpha(80),
+            ),
+            const SizedBox(height: 12),
+            _ContactRow(
+              icon: Icons.email_rounded,
+              label: 'Email Address',
+              value: em,
+              color: _secondary,
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildInfoState(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    String? actionLabel,
+    VoidCallback? onTap,
+  }) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.manrope(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: theme.colorScheme.onSurface,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (actionLabel != null && onTap != null) ...[
+              const SizedBox(height: 14),
+              ElevatedButton(onPressed: onTap, child: Text(actionLabel)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Options list ───────────────────────────────────────────────────────────
+  Widget _buildOptionsList() {
+    return _OptionGroup(
+      items: [
+        _OptionItem(
+          icon: Icons.settings_rounded,
+          label: 'Settings',
+          subtitle: 'App preferences & configuration',
+          color: _primary,
+          onTap: controller.navigateToSettings,
+        ),
+        _OptionItem(
+          icon: Icons.contrast_rounded,
+          label: 'Appearance',
+          subtitle: 'Light, Dark, or System default',
+          color: const Color(0xFF6D28D9),
+          trailing: Obx(() {
+            final mode = controller.themeMode.value;
+            return Builder(
+              builder: (ctx) {
+                final theme = Theme.of(ctx);
+                return SegmentedButton<ThemeMode>(
+                  style: SegmentedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    visualDensity: VisualDensity.compact,
+                    selectedBackgroundColor: const Color(
+                      0xFF6D28D9,
+                    ).withAlpha(30),
+                    selectedForegroundColor: const Color(0xFF6D28D9),
+                    foregroundColor: theme.colorScheme.onSurfaceVariant,
+                    side: BorderSide(
+                      color: theme.colorScheme.outlineVariant,
+                      width: 1,
+                    ),
+                  ),
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      icon: Icon(Icons.brightness_auto_rounded, size: 16),
+                      tooltip: 'System',
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      icon: Icon(Icons.light_mode_rounded, size: 16),
+                      tooltip: 'Light',
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      icon: Icon(Icons.dark_mode_rounded, size: 16),
+                      tooltip: 'Dark',
+                    ),
+                  ],
+                  selected: {mode},
+                  onSelectionChanged: (s) => controller.setThemeMode(s.first),
+                );
+              },
+            );
+          }),
+        ),
+        _OptionItem(
+          icon: Icons.filter_alt_rounded,
+          label: 'Contacts',
+          subtitle: 'Choose who receives auto-replies',
+          color: const Color(0xFF1565C0),
+          onTap: () => Get.to(() => const ContactFilterTab()),
+        ),
+        _OptionItem(
+          icon: Icons.analytics_rounded,
+          label: 'Analytics',
+          subtitle: 'Reports & insights',
+          color: const Color(0xFF6D28D9),
+          onTap: () => Get.to(() => const AnalyticsNavView()),
+        ),
+        _OptionItem(
+          icon: Icons.storefront_rounded,
+          label: 'Businesses',
+          subtitle: 'SIM lines, messages & reply types',
+          color: const Color(0xFF1565C0),
+          onTap: () {
+            if (!Get.isRegistered<StoresController>()) {
+              Get.put(StoresController());
+            }
+            Get.to(() => const StoresListView());
+          },
+        ),
+        _OptionItem(
+          icon: Icons.schedule_send_rounded,
+          label: 'Schedule Message',
+          subtitle: 'Set up SMS to be sent at specific times',
+          color: const Color(0xFFE91E63),
+          onTap: () => Get.to(() => const ScheduledMessagesView()),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSupportList() {
+    return _OptionGroup(
+      items: [
+        _OptionItem(
+          icon: Icons.help_outline_rounded,
+          label: 'Help & Support',
+          subtitle: 'FAQs, guides & contact support',
+          color: _primary,
+          onTap: () => Get.toNamed(Routes.helpSupport),
+        ),
+        _OptionItem(
+          icon: Icons.policy_rounded,
+          label: 'Privacy Policy',
+          subtitle: 'How we handle your data',
+          color: _onSurfaceVariant,
+          onTap: () => Get.toNamed(Routes.privacyPolicy),
+        ),
+        _OptionItem(
+          icon: Icons.star_rate_rounded,
+          label: 'Rate ReplyMate',
+          subtitle: 'Share your experience',
+          color: const Color(0xFFF59E0B),
+          onTap: () {},
+        ),
+      ],
+    );
+  }
+
+  // ── Logout button ──────────────────────────────────────────────────────────
+  Widget _buildLogoutButton(BuildContext context) {
+    final theme = Theme.of(context);
+    return Obx(() {
+      final loading = controller.isLoggingOut.value;
+      return GestureDetector(
+        onTap: loading ? null : controller.confirmLogout,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.error.withAlpha(10),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.colorScheme.error.withAlpha(60),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.error.withAlpha(15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: loading
+                    ? Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: theme.colorScheme.error,
+                          ),
+                        ),
+                      )
+                    : Icon(
+                        Icons.logout_rounded,
+                        size: 20,
+                        color: theme.colorScheme.error,
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      loading ? 'Signing out…' : 'Sign Out',
+                      style: GoogleFonts.manrope(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                    Text(
+                      'You will be returned to the login screen',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: theme.colorScheme.error.withAlpha(160),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: theme.colorScheme.error.withAlpha(120),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  // ── Section label ──────────────────────────────────────────────────────────
+  Widget _buildSectionLabel(BuildContext context, String label) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        label,
+        style: GoogleFonts.manrope(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          color: theme.colorScheme.onSurfaceVariant,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  // ── Version footer ─────────────────────────────────────────────────────────
+  Widget _buildVersionFooter(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        children: [
+          Text(
+            'ReplyMate',
+            style: GoogleFonts.manrope(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Version 1.0.0 · Build 100',
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: theme.colorScheme.outlineVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Reusable sub-widgets ──────────────────────────────────────────────────────
+
+class _ContactRow extends StatelessWidget {
+  const _ContactRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color.withAlpha(25),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                value,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontFamily: 'Manrope',
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        Icon(Icons.copy_rounded, size: 16, color: color.withAlpha(120)),
+      ],
+    );
+  }
+}
+
+class _OptionGroup extends StatelessWidget {
+  const _OptionGroup({required this.items});
+
+  final List<_OptionItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withAlpha(50),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < items.length; i++) ...[
+            items[i],
+            if (i < items.length - 1)
+              Divider(
+                height: 1,
+                indent: 56,
+                color: theme.colorScheme.outlineVariant.withAlpha(80),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OptionItem extends StatelessWidget {
+  const _OptionItem({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.color,
+    this.onTap,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final Color color;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withAlpha(25),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontFamily: 'Manrope',
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontFamily: 'Inter',
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            trailing ??
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: theme.colorScheme.onSurface.withAlpha(100),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+}

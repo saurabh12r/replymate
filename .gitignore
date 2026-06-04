@@ -1,0 +1,71 @@
+# Miscellaneous OS files
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+
+# Git Backups (e.g. original .git folders renamed for safety)
+**/.git_backup/
+
+# IntelliJ IDEA Project Files
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+
+# Flutter / Dart Build Files
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/build/
+**/coverage/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+
+# Android Studio and Gradle files
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+**/.gradle/
+**/local.properties
+
+# CocoaPods / iOS Build Files
+**/ios/Pods/
+**/.symlinks/
+**/DerivedData/
+**/*.xcworkspace/xcuserdata/
+**/*.xcodeproj/xcuserdata/
+
+# Node.js (for Firebase Cloud Functions / Netlify builds)
+**/node_modules/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/.npm/
+
+# Firebase configuration caches
+**/.firebase/
+**/.firebaserc
+**/firebase.log
+**/firestore-debug.log
+**/ui-debug.log
+
+# Private env & key files
+**/.env
+**/.env.local
+**/.env.development
+**/.env.test
+**/.env.production
+**/google-services.json
+**/GoogleService-Info.plist
+**/firebase-key.json

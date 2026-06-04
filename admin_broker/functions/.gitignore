@@ -1,0 +1,12 @@
+# Firebase Functions Local ignores
+node_modules/
+.env
+.env.local
+.env.development
+.env.production
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
