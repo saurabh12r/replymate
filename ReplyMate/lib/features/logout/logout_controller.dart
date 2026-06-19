@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/services/auth/session_identity.dart';
 import '../../core/services/auth/user_repository.dart';
 
 /// LogoutController
@@ -28,13 +29,14 @@ class LogoutController extends GetxController {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final data = await _userRepository.getUserByPhone(user.phoneNumber ?? '');
+    final phone = sessionPhone(user) ?? '';
+    final data = await _userRepository.getUserByPhone(phone);
     if (data != null) {
       userName.value = (data['name'] as String?) ?? 'User';
-      userEmail.value = (data['email'] as String?) ?? user.phoneNumber ?? '';
+      userEmail.value = (data['email'] as String?) ?? phone;
     } else {
       userName.value = user.displayName ?? 'User';
-      userEmail.value = user.phoneNumber ?? '';
+      userEmail.value = phone;
     }
   }
 

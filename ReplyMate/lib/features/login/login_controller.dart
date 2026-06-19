@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import '../../core/services/auth/phone_auth_service.dart';
 import '../../core/services/auth/user_repository.dart';
@@ -89,13 +88,11 @@ class LoginController extends GetxController {
       _phoneAuthService
           .sendOtp(
             phoneNumber: fullPhone,
+            countryCode: countryCode.value,
             onCodeSent: (verificationId) {
               if (Get.isRegistered<OtpController>()) {
                 Get.find<OtpController>().setVerificationId(verificationId);
               }
-            },
-            onVerificationCompleted: (_) {
-              Get.offAllNamed(Routes.dashboard);
             },
             onFailed: (message) {
               errorMessage.value = message;
@@ -146,8 +143,6 @@ class LoginController extends GetxController {
       }
 
       await sendOtp();
-    } on FirebaseAuthException catch (e) {
-      errorMessage.value = e.message ?? 'Failed to send OTP';
     } catch (_) {
       errorMessage.value = 'Something went wrong. Please try again.';
     } finally {

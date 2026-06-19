@@ -188,11 +188,13 @@ exports.onUserApproved = onDocumentUpdated(
     const before = event.data.before.data();
     const after = event.data.after.data();
 
-    // Only trigger when isApproved changes false → true
-    if (before.isApproved === false && after.isApproved === true) {
-      const fcmToken = after.fcmToken;
-      if (!fcmToken) return;
+    // Notifications are best-effort. A missing fcmToken must only skip the push —
+    // it must NOT early-return, or the stats refresh below would be skipped (e.g. a
+    // broker approving a user who has never logged in yet, so has no token).
+    const fcmToken = after.fcmToken;
 
+    // Approved: false → true
+    if (before.isApproved === false && after.isApproved === true && fcmToken) {
       const subEnd = after.subscriptionEnd?.toDate();
       const subEndStr = subEnd
         ? `${subEnd.getDate()} ${_monthName(subEnd.getMonth())} ${subEnd.getFullYear()}`
@@ -217,10 +219,8 @@ exports.onUserApproved = onDocumentUpdated(
       }
     }
 
-    // Also trigger when isBlocked changes true → false (unblocked)
-    if (before.isBlocked === true && after.isBlocked === false && after.isApproved === true) {
-      const fcmToken = after.fcmToken;
-      if (!fcmToken) return;
+    // Unblocked: isBlocked true → false (and approved)
+    if (before.isBlocked === true && after.isBlocked === false && after.isApproved === true && fcmToken) {
       try {
         await getMessaging().send({
           token: fcmToken,
@@ -234,35 +234,30 @@ exports.onUserApproved = onDocumentUpdated(
       } catch (_) { }
     }
 
-    // Trigger when user is assigned a plan / renewed (isApproved remains true, but planId or endDate changes)
-    if (before.isApproved === true && after.isApproved === true) {
+    // Plan assigned / renewed (still approved, but planId or endDate changed)
+    if (before.isApproved === true && after.isApproved === true && fcmToken) {
       const planChanged = before.planId !== after.planId;
       const subExtended = (after.subscriptionEnd && before.subscriptionEnd && after.subscriptionEnd.toMillis() > before.subscriptionEnd.toMillis());
-      
+
       if (planChanged || subExtended) {
-        const fcmToken = after.fcmToken;
-        if (fcmToken) {
-          const subEnd = after.subscriptionEnd?.toDate();
-          const subEndStr = subEnd ? `${subEnd.getDate()} ${_monthName(subEnd.getMonth())} ${subEnd.getFullYear()}` : 'N/A';
-          try {
-            await getMessaging().send({
-              token: fcmToken,
-              notification: {
-                title: '🎉 Plan Assigned & Renewed',
-                body: `Your plan has been updated to "${after.planName || 'New Plan'}". Valid until ${subEndStr}.`,
-              },
-              data: { type: 'plan_assigned' },
-              android: { priority: 'high' },
-            });
-          } catch (_) { }
-        }
+        const subEnd = after.subscriptionEnd?.toDate();
+        const subEndStr = subEnd ? `${subEnd.getDate()} ${_monthName(subEnd.getMonth())} ${subEnd.getFullYear()}` : 'N/A';
+        try {
+          await getMessaging().send({
+            token: fcmToken,
+            notification: {
+              title: '🎉 Plan Assigned & Renewed',
+              body: `Your plan has been updated to "${after.planName || 'New Plan'}". Valid until ${subEndStr}.`,
+            },
+            data: { type: 'plan_assigned' },
+            android: { priority: 'high' },
+          });
+        } catch (_) { }
       }
     }
 
-    // Trigger when isBlocked changes false → true (suspended)
-    if (before.isBlocked === false && after.isBlocked === true) {
-      const fcmToken = after.fcmToken;
-      if (!fcmToken) return;
+    // Suspended: isBlocked false → true
+    if (before.isBlocked === false && after.isBlocked === true && fcmToken) {
       try {
         await getMessaging().send({
           token: fcmToken,
@@ -276,8 +271,17 @@ exports.onUserApproved = onDocumentUpdated(
       } catch (_) { }
     }
 
-    // Update global stats on any approval change
-    await _updateGlobalStats();
+    // Refresh global stats ONLY when a stats-relevant field actually changed.
+    // This both (a) guarantees stats update on approval/block regardless of fcmToken,
+    // and (b) avoids a full 3-collection re-aggregation on every fcmToken-only write
+    // (e.g. token refresh on each login), which is the common case at scale.
+    const statsRelevantChanged =
+      before.isApproved !== after.isApproved ||
+      before.isBlocked !== after.isBlocked ||
+      before.brokerId !== after.brokerId;
+    if (statsRelevantChanged) {
+      await _updateGlobalStats();
+    }
   }
 );
 
@@ -289,34 +293,38 @@ exports.onBrokerUserRegistered = onDocumentCreated(
   async (event) => {
     const data = event.data.data();
     const brokerId = data.brokerId;
-    if (!brokerId) return; // Direct (no broker) registration — skip
 
-    try {
-      // Get broker's portal account to find their FCM token
-      const brokerPortalDoc = await db.collection('admin_users').doc(brokerId).get();
-      const fcmToken = brokerPortalDoc.data()?.fcmToken;
-      if (!fcmToken) return;
-
-      await getMessaging().send({
-        token: fcmToken,
-        notification: {
-          title: '🆕 New User Registered',
-          body: `${data.name || 'A new user'} registered using your broker code. Awaiting your approval.`,
-        },
-        data: {
-          type: 'broker_new_user',
-          userId: event.params.userId,
-          userName: data.name || '',
-        },
-        android: { priority: 'normal' },
-      });
-
-      logger.info(`onBrokerUserRegistered: notified broker ${brokerId}`);
-    } catch (e) {
-      logger.warn(`onBrokerUserRegistered FCM failed: ${e.message}`);
+    // Notify the broker (best-effort) when a user registered with their code. A missing
+    // brokerId (direct registration) or missing token must only skip the push — it must NOT
+    // early-return, or the stats refresh below would be skipped and a new user would not be
+    // counted until some later write happened to trigger a recompute.
+    if (brokerId) {
+      try {
+        // Get broker's portal account to find their FCM token
+        const brokerPortalDoc = await db.collection('admin_users').doc(brokerId).get();
+        const fcmToken = brokerPortalDoc.data()?.fcmToken;
+        if (fcmToken) {
+          await getMessaging().send({
+            token: fcmToken,
+            notification: {
+              title: '🆕 New User Registered',
+              body: `${data.name || 'A new user'} registered using your broker code. Awaiting your approval.`,
+            },
+            data: {
+              type: 'broker_new_user',
+              userId: event.params.userId,
+              userName: data.name || '',
+            },
+            android: { priority: 'normal' },
+          });
+          logger.info(`onBrokerUserRegistered: notified broker ${brokerId}`);
+        }
+      } catch (e) {
+        logger.warn(`onBrokerUserRegistered FCM failed: ${e.message}`);
+      }
     }
 
-    // Update global stats
+    // Always refresh stats — a new user (broker-referred OR direct) changes the counts.
     await _updateGlobalStats();
   }
 );
@@ -565,4 +573,219 @@ exports.sendCampaignNotification = onCall({ region: 'asia-south1', timeoutSecond
   }
 
   return { success: successCount, failed: failureCount, total: tokens.length };
+});
+
+// ─── 8. MESSAGE CENTRAL OTP (Callable Functions) ───────────────────────────────
+// Replaces Firebase Phone Auth OTP delivery. Message Central (VerifyNow v3) sends &
+// validates the SMS code; on success we mint a Firebase CUSTOM TOKEN whose uid is the
+// user's E.164 phone number, so the existing phone-keyed identity model is preserved.
+// Credentials live in functions/.env (git-ignored) and are read from process.env.
+
+const MC_BASE_URL = process.env.MC_BASE_URL || 'https://cpaas.messagecentral.com';
+const MC_CUSTOMER_ID = process.env.MC_CUSTOMER_ID || '';
+const MC_PASSWORD = process.env.MC_PASSWORD || ''; // already base64 → sent as `key`
+const MC_EMAIL = process.env.MC_EMAIL || '';
+const MC_COUNTRY = process.env.MC_COUNTRY || '91'; // account country for token generation
+
+// OTP abuse / lifetime tuning.
+const OTP_SEND_MAX_PER_WINDOW = 5;       // max sends per phone per window
+const OTP_SEND_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const OTP_VERIFY_MAX_ATTEMPTS = 5;       // max validate attempts per verificationId
+const OTP_SESSION_TTL_MS = 15 * 60 * 1000; // session validity (matches MC timeout)
+// NOTE: enable a Firestore TTL policy on the `expireAt` field of the `otp_sessions`
+// and `otp_rate` collections so abandoned docs self-delete. Neither collection is
+// listed in firestore.rules, so clients cannot read/write them — Admin SDK only.
+
+// Cached MC auth token (valid for hours). Refreshed on expiry / on demand.
+let _mcToken = null;
+let _mcTokenExpiresAt = 0;
+
+async function getMcAuthToken() {
+  const now = Date.now();
+  if (_mcToken && now < _mcTokenExpiresAt) return _mcToken;
+
+  if (!MC_CUSTOMER_ID || !MC_PASSWORD) {
+    throw new HttpsError('failed-precondition', 'Message Central credentials are not configured.');
+  }
+
+  const params = new URLSearchParams({
+    customerId: MC_CUSTOMER_ID,
+    key: MC_PASSWORD,
+    scope: 'NEW',
+    country: MC_COUNTRY,
+  });
+  if (MC_EMAIL) params.set('email', MC_EMAIL);
+
+  const url = `${MC_BASE_URL}/auth/v1/authentication/token?${params.toString()}`;
+  let res;
+  try {
+    res = await fetch(url, { method: 'GET', headers: { accept: '*/*' } });
+  } catch (e) {
+    logger.error('MC token request failed', e);
+    throw new HttpsError('unavailable', 'Could not reach Message Central.');
+  }
+
+  const body = await res.json().catch(() => ({}));
+  const token = body.token || body.authToken || (body.data && body.data.token);
+  if (!res.ok || !token) {
+    logger.error('MC token error', { status: res.status, body });
+    throw new HttpsError('internal', 'Failed to obtain Message Central auth token.');
+  }
+
+  _mcToken = token;
+  // Conservative cache window (token is valid for hours; refresh after ~50 min).
+  _mcTokenExpiresAt = now + 50 * 60 * 1000;
+  return _mcToken;
+}
+
+// Split an E.164 number into {countryCode, mobileNumber}. Falls back to provided countryCode.
+function splitPhone(phoneNumber, countryCode) {
+  const cc = String(countryCode || '').replace(/[^\d]/g, '');
+  let digits = String(phoneNumber || '').replace(/[^\d]/g, '');
+  if (cc && digits.startsWith(cc)) digits = digits.slice(cc.length);
+  return { countryCode: cc || MC_COUNTRY, mobileNumber: digits };
+}
+
+// Sliding-window per-phone throttle to prevent SMS bombing / credit abuse.
+async function enforceSendRateLimit(phoneKey) {
+  const ref = db.collection('otp_rate').doc(phoneKey);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const now = Date.now();
+    let count = 0;
+    let windowStart = now;
+    if (snap.exists) {
+      const d = snap.data();
+      windowStart = d.windowStart && d.windowStart.toMillis ? d.windowStart.toMillis() : now;
+      count = d.count || 0;
+      if (now - windowStart >= OTP_SEND_WINDOW_MS) {
+        count = 0;
+        windowStart = now;
+      }
+    }
+    if (count >= OTP_SEND_MAX_PER_WINDOW) {
+      throw new HttpsError('resource-exhausted', 'Too many OTP requests. Please try again later.');
+    }
+    tx.set(ref, {
+      count: count + 1,
+      windowStart: Timestamp.fromMillis(windowStart),
+      updatedAt: FieldValue.serverTimestamp(),
+      expireAt: Timestamp.fromMillis(windowStart + OTP_SEND_WINDOW_MS),
+    });
+  });
+}
+
+exports.sendOtp = onCall({ region: 'asia-south1' }, async (request) => {
+  const { phoneNumber, countryCode } = request.data || {};
+  if (!phoneNumber) {
+    throw new HttpsError('invalid-argument', 'phoneNumber is required.');
+  }
+
+  const { countryCode: cc, mobileNumber } = splitPhone(phoneNumber, countryCode);
+  if (!mobileNumber) {
+    throw new HttpsError('invalid-argument', 'Invalid phone number.');
+  }
+
+  // Throttle BEFORE contacting MC so abuse never costs an SMS.
+  const phoneKey = String(phoneNumber).replace(/[^\d]/g, '');
+  await enforceSendRateLimit(phoneKey);
+
+  const authToken = await getMcAuthToken();
+  const params = new URLSearchParams({
+    countryCode: cc,
+    flowType: 'SMS',
+    mobileNumber,
+  });
+  const url = `${MC_BASE_URL}/verification/v3/send?${params.toString()}`;
+
+  let res;
+  try {
+    res = await fetch(url, { method: 'POST', headers: { authToken, accept: '*/*' } });
+  } catch (e) {
+    logger.error('MC send failed', e);
+    throw new HttpsError('unavailable', 'Could not reach Message Central.');
+  }
+
+  const body = await res.json().catch(() => ({}));
+  const verificationId = body.data && (body.data.verificationId || body.data.transactionId);
+  if (!res.ok || !verificationId) {
+    logger.error('MC send error', { status: res.status, body });
+    throw new HttpsError('internal', (body.message) || 'Failed to send OTP.');
+  }
+
+  // Bind this verificationId to the phone the SMS was actually sent to. verifyOtp uses
+  // THIS stored phone for the token uid — never a client-supplied value — so a caller
+  // cannot validate an OTP for a number they control yet mint a token for another number.
+  await db.collection('otp_sessions').doc(String(verificationId)).set({
+    phoneNumber: String(phoneNumber),
+    countryCode: cc,
+    attempts: 0,
+    createdAt: FieldValue.serverTimestamp(),
+    expireAt: Timestamp.fromMillis(Date.now() + OTP_SESSION_TTL_MS),
+  });
+
+  return { verificationId: String(verificationId) };
+});
+
+exports.verifyOtp = onCall({ region: 'asia-south1' }, async (request) => {
+  const { verificationId, code } = request.data || {};
+  if (!verificationId || !code) {
+    throw new HttpsError('invalid-argument', 'verificationId and code are required.');
+  }
+
+  // The phone is taken from the server-side session, NOT from the client.
+  const sessionRef = db.collection('otp_sessions').doc(String(verificationId));
+  const sessionSnap = await sessionRef.get();
+  if (!sessionSnap.exists) {
+    throw new HttpsError('invalid-argument', 'OTP session expired. Please request a new code.');
+  }
+  const session = sessionSnap.data();
+
+  const expMs = session.expireAt && session.expireAt.toMillis ? session.expireAt.toMillis() : 0;
+  if (expMs && Date.now() > expMs) {
+    await sessionRef.delete().catch(() => {});
+    throw new HttpsError('invalid-argument', 'OTP expired. Please request a new code.');
+  }
+
+  const attempts = (session.attempts || 0) + 1;
+  if (attempts > OTP_VERIFY_MAX_ATTEMPTS) {
+    await sessionRef.delete().catch(() => {});
+    throw new HttpsError('resource-exhausted', 'Too many attempts. Please request a new code.');
+  }
+  await sessionRef.update({ attempts });
+
+  const authToken = await getMcAuthToken();
+  const params = new URLSearchParams({
+    verificationId: String(verificationId),
+    code: String(code),
+  });
+  const url = `${MC_BASE_URL}/verification/v3/validateOtp?${params.toString()}`;
+
+  let res;
+  try {
+    res = await fetch(url, { method: 'GET', headers: { authToken, accept: '*/*' } });
+  } catch (e) {
+    logger.error('MC validate failed', e);
+    throw new HttpsError('unavailable', 'Could not reach Message Central.');
+  }
+
+  const body = await res.json().catch(() => ({}));
+  const status = body.data && body.data.verificationStatus;
+  if (!res.ok || status !== 'VERIFICATION_COMPLETED') {
+    logger.warn('MC validate rejected', { status: res.status, verificationStatus: status });
+    throw new HttpsError('invalid-argument', 'Invalid or expired OTP.');
+  }
+
+  // Mint a Firebase custom token. uid == E.164 phone (from the trusted session) keeps the
+  // phone-keyed identity model, and the phone_number claim satisfies the Firestore
+  // `request.auth.token.phone_number` rules.
+  const uid = String(session.phoneNumber);
+  try {
+    const token = await getAuth().createCustomToken(uid, { phone_number: uid });
+    await sessionRef.delete().catch(() => {}); // one-time use
+    return { token };
+  } catch (e) {
+    logger.error('createCustomToken failed', e);
+    throw new HttpsError('internal', 'Failed to create auth session.');
+  }
 });

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/services/auth/session_identity.dart';
 import '../../core/services/subscription/subscription_service.dart';
 
 /// SplashController — gates app entry based on subscription status
@@ -41,7 +42,7 @@ class SplashController extends GetxController {
       }
 
       // ── Check subscription status before routing ──────────────────────────
-      final phone = currentUser.phoneNumber; // e.g. '+919022902102'
+      final phone = sessionPhone(currentUser); // e.g. '+919022902102'
       final info = await SubscriptionService.instance.getOnce(
         currentUser.uid,
         phone: phone,

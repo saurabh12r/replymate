@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 
 import '../auto_reply/auto_reply_bridge.dart';
+import '../auth/session_identity.dart';
 import '../auth/user_repository.dart';
 
 /// Syncs `users/{phone}.isBlocked` from Firestore into native SharedPreferences.
@@ -25,7 +26,7 @@ class IsBlockedSyncService extends GetxService {
     // Initial sync + listener setup.
     try {
       final current = FirebaseAuth.instance.currentUser;
-      final initialPhone = current?.phoneNumber;
+      final initialPhone = sessionPhone(current);
       if (initialPhone != null && initialPhone.isNotEmpty) {
         _startForPhone(initialPhone);
       }
@@ -36,7 +37,7 @@ class IsBlockedSyncService extends GetxService {
     // Handle login/logout while app remains open.
     try {
       _authSub = FirebaseAuth.instance.authStateChanges().listen((user) async {
-        final phone = user?.phoneNumber;
+        final phone = sessionPhone(user);
         if (phone == null || phone.isEmpty) {
           await _stopUserListener();
           return;

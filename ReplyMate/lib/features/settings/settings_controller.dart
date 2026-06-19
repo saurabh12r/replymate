@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/services/auth/session_identity.dart';
 import '../../core/services/auth/user_repository.dart';
 import '../../core/services/auto_reply/auto_reply_bridge.dart';
 import '../../core/services/auto_reply/auto_reply_preferences.dart';
@@ -107,8 +108,7 @@ class SettingsController extends GetxController {
   }
 
   Future<bool> _isAutoReplyAllowedInFirebase() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final phone = currentUser?.phoneNumber;
+    final phone = sessionPhone();
     if (phone == null || phone.isEmpty) return false;
 
     final data = await _userRepository.getUserByPhone(phone);
@@ -141,8 +141,7 @@ class SettingsController extends GetxController {
   }
 
   Future<Map<String, bool>> _getAutoReplyAdminFlagsInFirebase() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final phone = currentUser?.phoneNumber;
+    final phone = sessionPhone();
     if (phone == null || phone.isEmpty) {
       return {'approved': false, 'blocked': false};
     }

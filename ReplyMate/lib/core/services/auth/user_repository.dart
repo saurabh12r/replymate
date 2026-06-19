@@ -68,11 +68,9 @@ class UserRepository {
   }
 
   Future<String?> getUserPhoneByUid(String uid) async {
-    final snap = await _users.where('authUid', isEqualTo: uid).limit(1).get();
-    if (snap.docs.isNotEmpty) {
-      return snap.docs.first.id; 
-    }
-    // Fallback: check if the document ID itself is the uid
+    // With Message Central custom-token auth, uid == the user's E.164 phone, which is also
+    // the user document id. A single-doc GET resolves it without a collection query (queries
+    // are denied to regular users by the tightened `users` list rule).
     final doc = await _users.doc(uid).get();
     if (doc.exists) return uid;
     return null;

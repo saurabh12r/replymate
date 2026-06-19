@@ -17,6 +17,7 @@ class OtpController extends GetxController {
 
   // ── Arguments from Login ──────────────────────────────────────────────────
   late final String phoneNumber;
+  String countryCode = '+91';
   String verificationId = '';
   final RxBool hasVerificationId = false.obs;
 
@@ -48,6 +49,7 @@ class OtpController extends GetxController {
     super.onInit();
     final args = Get.arguments as Map<String, dynamic>?;
     phoneNumber = args?['phone'] ?? '';
+    countryCode = args?['countryCode'] ?? '+91';
     verificationId = args?['verificationId'] ?? '';
     hasVerificationId.value = verificationId.isNotEmpty;
     _startResendTimer();
@@ -121,6 +123,7 @@ class OtpController extends GetxController {
       await _phoneAuthService.verifyOtp(
         verificationId: verificationId,
         code: otp.value,
+        phoneNumber: phoneNumber,
       );
       try {
         await Get.find<UserRepository>().updateFcmToken(phoneNumber);
@@ -152,19 +155,16 @@ class OtpController extends GetxController {
     try {
       await _phoneAuthService.sendOtp(
         phoneNumber: phoneNumber,
+        countryCode: countryCode,
         onCodeSent: (newVerificationId) {
           setVerificationId(newVerificationId);
-        },
-        onVerificationCompleted: (_) {
-          _navigatePostLogin();
         },
         onFailed: (message) {
           errorMessage.value = message;
         },
       );
-    } on FirebaseAuthException catch (e) {
-      errorMessage.value = e.message ?? 'Unable to resend OTP.';
     } catch (_) {
+      // sendOtp reports failures via onFailed; this guards against unexpected errors.
       errorMessage.value = 'Unable to resend OTP. Please try again.';
     }
   }

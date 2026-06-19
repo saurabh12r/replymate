@@ -65,21 +65,17 @@ service cloud.firestore {
 
     match /users/{userId} {
       // Read access:
-      // - Admin: all users
-      // - Broker: only their users (brokerId matches)
-      // - Authenticated mobile users: own document only (by UID or phone)
-      // - Unauthenticated: ONLY allowed for the login pre-check (getUserByPhone)
-      //   We cannot restrict unauthenticated reads to a specific doc because
-      //   request.auth is null; rely on strict create/update rules instead.
-      allow read: if isAdmin()
-        || (isBroker() && (resource.data.brokerId == request.auth.uid || resource.data.brokerId == null || resource.data.brokerId == ''))
-        || (isAuthenticated() && (
-             request.auth.uid == userId
-          || request.auth.token.phone_number == userId
-        ))
-        // Allow unauthenticated read of own doc by phone (signup check + login pre-check)
-        // The userId IS the phone number, so this is safe: they can only read their own doc.
-        || true;  // ← Temporarily open reads; tighten after phone-auth is enforced at signup
+      // - Single-document GET is open: needed UNAUTHENTICATED for the signup duplicate-check
+      //   and login pre-check (`users/{phone}` fetched by exact id before sign-in). Since
+      //   userId IS the phone number, a caller can only read a doc whose phone they already
+      //   know — there is no enumeration. (Fully removing the unauth GET would require moving
+      //   those pre-checks into a Cloud Function.)
+      // - LIST/queries are restricted so user PII cannot be mass-enumerated (the old
+      //   `allow read: ... || true` permitted exactly that). Admins list all; brokers list
+      //   only their own (or unassigned) users; regular mobile users never list.
+      allow get: if true;
+      allow list: if isAdmin()
+        || (isBroker() && (resource.data.brokerId == request.auth.uid || resource.data.brokerId == null || resource.data.brokerId == ''));
 
       // Create: Registration is done WITHOUT Firebase Auth (anonymous user).
       // Strictly constrain the writable fields and prevent privilege escalation.
@@ -87,7 +83,9 @@ service cloud.firestore {
         && request.resource.data.isBlocked == false
         && request.resource.data.keys().hasOnly([
           'name', 'phone', 'email', 'isApproved', 'isBlocked',
-          'createdAt', 'updatedAt', 'brokerId', 'brokerCode', 'status'
+          'createdAt', 'updatedAt', 'brokerId', 'brokerCode', 'status',
+          // registerUser() also seeds these; must be allowed or registration is rejected.
+          'authUid', 'fcmToken'
         ]);
 
       // Update access:
@@ -109,7 +107,7 @@ service cloud.firestore {
         || (isAuthenticated()
             && (request.auth.uid == userId || request.auth.token.phone_number == userId)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-              'name', 'email', 'fcmToken', 'updatedAt'
+              'name', 'email', 'fcmToken', 'authUid', 'updatedAt'
             ])
             // CRITICAL: users cannot self-approve
             && request.resource.data.isApproved == resource.data.isApproved
