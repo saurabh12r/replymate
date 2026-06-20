@@ -9,7 +9,13 @@ import android.util.Log
 import com.replymate.reply_mate.autoreply.AutoReplyConfigStore
 import com.replymate.reply_mate.autoreply.AutoReplyEngine
 import com.replymate.reply_mate.autoreply.AutoReplyEvent
+import com.google.android.gms.tasks.Tasks
+import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.replymate.reply_mate.autoreply.CallSubscriptionResolver
+import com.replymate.reply_mate.services.AutoReplyForegroundService
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
@@ -53,9 +59,58 @@ class CallStateReceiver : BroadcastReceiver() {
 
 
     private fun onReceiveImpl(context: Context, intent: Intent) {
-        if (AutoReplyConfigStore(context).getBlocked()) return
-        if (intent.action != TelephonyManager.ACTION_PHONE_STATE_CHANGED) return
         val configStore = AutoReplyConfigStore(context)
+        
+        // 1. Real-time fallback sync from Firestore
+        try {
+            if (FirebaseApp.getApps(context).isEmpty()) {
+                FirebaseApp.initializeApp(context.applicationContext)
+            }
+            val uid = FirebaseAuth.getInstance().currentUser?.phoneNumber?.takeIf { it.isNotEmpty() }
+                ?: configStore.getUserId()
+            if (!uid.isNullOrEmpty()) {
+                val db = FirebaseFirestore.getInstance()
+                val task = db.collection("users").document(uid).get()
+                val doc = Tasks.await(task, 2500, TimeUnit.MILLISECONDS)
+                if (doc != null && doc.exists()) {
+                    val isBlocked = doc.getBoolean("isBlocked") == true
+                    val isApproved = doc.getBoolean("isApproved") == true
+                    
+                    val subEndTimestamp = doc.getTimestamp("subscriptionEnd")
+                    val subEndMs = subEndTimestamp?.toDate()?.time ?: 0L
+                    
+                    // Check if expired in Firestore
+                    val isExpired = subEndMs > 0L && System.currentTimeMillis() > subEndMs
+                    val nextPlanDur = doc.getLong("nextPlanDurationDays")?.toInt() ?: 0
+                    
+                    var finalBlocked = isBlocked || !isApproved
+                    if (isExpired) {
+                        if (nextPlanDur > 0) {
+                            val newSubEndMs = subEndMs + nextPlanDur * 24L * 60L * 60L * 1000L
+                            configStore.setSubEndTime(newSubEndMs)
+                            configStore.setNextPlanDurationDays(0)
+                            finalBlocked = false
+                        } else {
+                            finalBlocked = true
+                        }
+                    } else {
+                        configStore.setSubEndTime(subEndMs)
+                        configStore.setNextPlanDurationDays(nextPlanDur)
+                    }
+                    
+                    configStore.setBlocked(finalBlocked)
+                    Log.d(TAG, "Real-time background sync from Firestore successful: blocked=$finalBlocked subEndMs=$subEndMs nextPlanDur=$nextPlanDur")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Real-time background sync from Firestore failed/timed out: ${e.message}")
+        }
+
+        if (configStore.getBlocked()) {
+            AutoReplyForegroundService.stop(context)
+            return
+        }
+        if (intent.action != TelephonyManager.ACTION_PHONE_STATE_CHANGED) return
         if (!configStore.isEnabledFailSafe()) {
             Log.d(TAG, "Blocked call event: autoReplyEnabled=false")
             return

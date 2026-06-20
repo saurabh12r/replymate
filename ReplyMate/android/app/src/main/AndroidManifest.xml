@@ -101,6 +101,16 @@
             android:exported="false"
             android:foregroundServiceType="remoteMessaging"
             tools:targetApi="34" />
+        <service
+            android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingService"
+            tools:node="remove" />
+        <service
+            android:name=".services.MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
         <receiver
             android:name=".receivers.CallStateReceiver"
             android:exported="true">

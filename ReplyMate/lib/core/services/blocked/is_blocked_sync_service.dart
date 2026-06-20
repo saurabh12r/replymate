@@ -60,7 +60,8 @@ class IsBlockedSyncService extends GetxService {
     // Real-time updates.
     _userSub = _userRepository.watchUserByPhone(phone).listen((data) async {
       final blocked = (data?['isBlocked'] as bool?) == true;
-      await _setBlockedNative(blocked);
+      final approved = (data?['isApproved'] as bool?) == true;
+      await _setBlockedNative(blocked || !approved);
     }, onError: (_) {});
   }
 
@@ -68,7 +69,8 @@ class IsBlockedSyncService extends GetxService {
     try {
       final data = await _userRepository.getUserByPhone(phone);
       final blocked = (data?['isBlocked'] as bool?) == true;
-      await _setBlockedNative(blocked);
+      final approved = (data?['isApproved'] as bool?) == true;
+      await _setBlockedNative(blocked || !approved);
     } catch (_) {
       // Offline/no internet: keep last known native value.
     }

@@ -41,55 +41,46 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyA72tSwlX3t6AWKSQ6nrHPKNDvPEpp2yHU',
-    appId: '1:368388519683:web:9de3713393f7e7fd9b9b36',
-    messagingSenderId: '368388519683',
-    projectId: 'replymate-1f925',
-    authDomain: 'replymate-1f925.firebaseapp.com',
-    databaseURL: 'https://replymate-1f925-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'replymate-1f925.firebasestorage.app',
+    apiKey: 'AIzaSyBNHZKJ9awtPkqgwQ5mHwSvc8SkA7E8fUM',
+    appId: '1:255796319813:web:5d3efdf8ea370bc4fab52c',
+    messagingSenderId: '255796319813',
+    projectId: 'xyzd-7254d',
+    authDomain: 'xyzd-7254d.firebaseapp.com',
+    storageBucket: 'xyzd-7254d.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB8IP0ZF9qJ9GOQbw5BPO2D8wXuD8rLPPY',
-    appId: '1:368388519683:android:583f207a154aa7309b9b36',
-    messagingSenderId: '368388519683',
-    projectId: 'replymate-1f925',
-    databaseURL: 'https://replymate-1f925-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'replymate-1f925.firebasestorage.app',
+    apiKey: 'AIzaSyBlosXNA8SToNkFTy0ORYm8YhP6hcSzsuE',
+    appId: '1:255796319813:android:f8cc273d69ea1b00fab52c',
+    messagingSenderId: '255796319813',
+    projectId: 'xyzd-7254d',
+    storageBucket: 'xyzd-7254d.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBd6nZBK17lLYd6ltkcj8u0EjsshTdJYqQ',
-    appId: '1:368388519683:ios:a4094713d5fdadd49b9b36',
-    messagingSenderId: '368388519683',
-    projectId: 'replymate-1f925',
-    databaseURL: 'https://replymate-1f925-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'replymate-1f925.firebasestorage.app',
-    androidClientId: '368388519683-5c2s66ptl1jecgprjdnpt1p2lu3te1hu.apps.googleusercontent.com',
-    iosClientId: '368388519683-1i3bkrrj8al3ffp8bpi0l6hol3u3bmhk.apps.googleusercontent.com',
+    apiKey: 'AIzaSyCqan8bwnSzTNnovhIDQGV6t_tmsKp2JJQ',
+    appId: '1:255796319813:ios:0dedf06004f71ed5fab52c',
+    messagingSenderId: '255796319813',
+    projectId: 'xyzd-7254d',
+    storageBucket: 'xyzd-7254d.firebasestorage.app',
     iosBundleId: 'com.example.adminBroker',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBd6nZBK17lLYd6ltkcj8u0EjsshTdJYqQ',
-    appId: '1:368388519683:ios:a4094713d5fdadd49b9b36',
-    messagingSenderId: '368388519683',
-    projectId: 'replymate-1f925',
-    databaseURL: 'https://replymate-1f925-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'replymate-1f925.firebasestorage.app',
-    androidClientId: '368388519683-5c2s66ptl1jecgprjdnpt1p2lu3te1hu.apps.googleusercontent.com',
-    iosClientId: '368388519683-1i3bkrrj8al3ffp8bpi0l6hol3u3bmhk.apps.googleusercontent.com',
+    apiKey: 'AIzaSyCqan8bwnSzTNnovhIDQGV6t_tmsKp2JJQ',
+    appId: '1:255796319813:ios:0dedf06004f71ed5fab52c',
+    messagingSenderId: '255796319813',
+    projectId: 'xyzd-7254d',
+    storageBucket: 'xyzd-7254d.firebasestorage.app',
     iosBundleId: 'com.example.adminBroker',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyA72tSwlX3t6AWKSQ6nrHPKNDvPEpp2yHU',
-    appId: '1:368388519683:web:cb3ba64b499bbe449b9b36',
-    messagingSenderId: '368388519683',
-    projectId: 'replymate-1f925',
-    authDomain: 'replymate-1f925.firebaseapp.com',
-    databaseURL: 'https://replymate-1f925-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'replymate-1f925.firebasestorage.app',
+    apiKey: 'AIzaSyBNHZKJ9awtPkqgwQ5mHwSvc8SkA7E8fUM',
+    appId: '1:255796319813:web:98be130e6d4965dbfab52c',
+    messagingSenderId: '255796319813',
+    projectId: 'xyzd-7254d',
+    authDomain: 'xyzd-7254d.firebaseapp.com',
+    storageBucket: 'xyzd-7254d.firebasestorage.app',
   );
 }

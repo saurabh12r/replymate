@@ -50,19 +50,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB8IP0ZF9qJ9GOQbw5BPO2D8wXuD8rLPPY',
-    appId: '1:368388519683:android:6f41a0945bf7e75c9b9b36',
-    messagingSenderId: '368388519683',
-    projectId: 'replymate-1f925',
-    storageBucket: 'replymate-1f925.firebasestorage.app',
+    apiKey: 'AIzaSyBlosXNA8SToNkFTy0ORYm8YhP6hcSzsuE',
+    appId: '1:255796319813:android:7cccdd80c40771cdfab52c',
+    messagingSenderId: '255796319813',
+    projectId: 'xyzd-7254d',
+    storageBucket: 'xyzd-7254d.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBd6nZBK17lLYd6ltkcj8u0EjsshTdJYqQ',
-    appId: '1:368388519683:ios:a7cdcb023fdc88819b9b36',
-    messagingSenderId: '368388519683',
-    projectId: 'replymate-1f925',
-    storageBucket: 'replymate-1f925.firebasestorage.app',
+    apiKey: 'AIzaSyCqan8bwnSzTNnovhIDQGV6t_tmsKp2JJQ',
+    appId: '1:255796319813:ios:8ef411195f1f767ffab52c',
+    messagingSenderId: '255796319813',
+    projectId: 'xyzd-7254d',
+    storageBucket: 'xyzd-7254d.firebasestorage.app',
     iosBundleId: 'com.replymate.replyMate',
   );
 }

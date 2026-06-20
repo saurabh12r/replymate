@@ -249,21 +249,26 @@ exports.onUserApproved = onDocumentUpdated(
               title: '🎉 Plan Assigned & Renewed',
               body: `Your plan has been updated to "${after.planName || 'New Plan'}". Valid until ${subEndStr}.`,
             },
-            data: { type: 'plan_assigned' },
+            data: {
+              type: 'plan_assigned',
+              subscriptionEnd: subEnd ? subEnd.toISOString() : '',
+            },
             android: { priority: 'high' },
           });
         } catch (_) { }
       }
     }
 
-    // Suspended: isBlocked false → true
-    if (before.isBlocked === false && after.isBlocked === true && fcmToken) {
+    // Suspended: isBlocked false → true OR isApproved true → false
+    const becameBlocked = before.isBlocked === false && after.isBlocked === true;
+    const becameDisapproved = before.isApproved === true && after.isApproved === false;
+    if ((becameBlocked || becameDisapproved) && fcmToken) {
       try {
         await getMessaging().send({
           token: fcmToken,
           notification: {
             title: '🚫 Account Suspended',
-            body: 'Your ReplyMate account has been suspended by the admin. Auto-reply services are paused.',
+            body: 'Your ReplyMate account has been suspended or has expired. Auto-reply services are paused.',
           },
           data: { type: 'account_suspended' },
           android: { priority: 'high' },
@@ -601,6 +606,15 @@ let _mcToken = null;
 let _mcTokenExpiresAt = 0;
 
 async function getMcAuthToken() {
+  // If a direct long-lived auth token is configured, use it directly
+  if (process.env.MC_AUTH_TOKEN) {
+    return process.env.MC_AUTH_TOKEN;
+  }
+  // Fallback: if MC_PASSWORD looks like a JWT token (contains dots), use it directly
+  if (MC_PASSWORD && MC_PASSWORD.includes('.')) {
+    return MC_PASSWORD;
+  }
+
   const now = Date.now();
   if (_mcToken && now < _mcTokenExpiresAt) return _mcToken;
 

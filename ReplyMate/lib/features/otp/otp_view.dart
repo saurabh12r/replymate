@@ -55,7 +55,7 @@ class OtpView extends GetView<OtpController> {
                           height: 1.5,
                         ),
                         children: [
-                          const TextSpan(text: "We've sent a 6-digit code to "),
+                          const TextSpan(text: "We've sent a 4-digit code to "),
                           TextSpan(
                             text: controller.phoneNumber.isNotEmpty
                                 ? controller.phoneNumber

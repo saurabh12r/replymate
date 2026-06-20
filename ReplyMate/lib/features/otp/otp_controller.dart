@@ -21,8 +21,8 @@ class OtpController extends GetxController {
   String verificationId = '';
   final RxBool hasVerificationId = false.obs;
 
-  // ── OTP input (6 boxes) ───────────────────────────────────────────────────
-  static const int otpLength = 6;
+  // ── OTP input (4 boxes) ───────────────────────────────────────────────────
+  static const int otpLength = 4;
   final List<TextEditingController> boxes = List.generate(
     otpLength,
     (_) => TextEditingController(),
@@ -108,7 +108,7 @@ class OtpController extends GetxController {
   void _updateOtp() {
     otp.value = boxes.map((c) => c.text).join();
     isValid.value =
-        otp.value.length == otpLength && RegExp(r'^\d{6}$').hasMatch(otp.value);
+        otp.value.length == otpLength && RegExp('^\\d{$otpLength}\$').hasMatch(otp.value);
   }
 
   // ── Verify ────────────────────────────────────────────────────────────────

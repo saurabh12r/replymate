@@ -1,6 +1,6 @@
 [build]
   publish = "build/web"
-  command = "flutter build web --release"
+  command = "bash build.sh"
 
 [build.environment]
   FLUTTER_VERSION = "3.27.3"
