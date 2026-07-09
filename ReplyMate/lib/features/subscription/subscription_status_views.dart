@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/services/subscription/subscription_service.dart';
 
@@ -19,6 +20,8 @@ class _PendingApprovalViewState extends State<PendingApprovalView> {
   BrokerInfo? _brokerInfo;
   bool _loadingBroker = true;
   StreamSubscription? _sub;
+  SubscriptionInfo? _subInfo;
+  Timer? _scheduledActivationTimer;
 
   @override
   void initState() {
@@ -29,6 +32,7 @@ class _PendingApprovalViewState extends State<PendingApprovalView> {
   @override
   void dispose() {
     _sub?.cancel();
+    _scheduledActivationTimer?.cancel();
     super.dispose();
   }
 
@@ -39,6 +43,24 @@ class _PendingApprovalViewState extends State<PendingApprovalView> {
           if (mounted) Get.offAllNamed(Routes.dashboard);
         });
         return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _subInfo = subInfo;
+        });
+      }
+
+      _scheduledActivationTimer?.cancel();
+      if (subInfo.status == SubscriptionStatus.scheduled && subInfo.subscriptionStart != null) {
+        final timeToStart = subInfo.subscriptionStart!.difference(DateTime.now());
+        if (timeToStart.inMilliseconds > 0) {
+          _scheduledActivationTimer = Timer(timeToStart, () {
+            if (mounted) {
+              Get.offAllNamed(Routes.splash);
+            }
+          });
+        }
       }
 
       if (subInfo.brokerId != null) {
@@ -78,15 +100,19 @@ class _PendingApprovalViewState extends State<PendingApprovalView> {
                   color: const Color(0xFF1A2980).withAlpha(15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.hourglass_top_rounded,
+                child: Icon(
+                  _subInfo?.status == SubscriptionStatus.scheduled
+                      ? Icons.schedule_rounded
+                      : Icons.hourglass_top_rounded,
                   size: 48,
-                  color: Color(0xFF1A2980),
+                  color: const Color(0xFF1A2980),
                 ),
               ),
               const SizedBox(height: 28),
               Text(
-                'Pending Approval',
+                _subInfo?.status == SubscriptionStatus.scheduled
+                    ? 'Subscription Scheduled'
+                    : 'Pending Approval',
                 style: GoogleFonts.manrope(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
@@ -96,7 +122,9 @@ class _PendingApprovalViewState extends State<PendingApprovalView> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Your account has been registered successfully.\nYour admin or broker will activate it shortly.',
+                _subInfo?.status == SubscriptionStatus.scheduled && _subInfo?.subscriptionStart != null
+                    ? 'Your subscription is approved and scheduled to start on:\n${DateFormat('dd MMM yyyy').format(_subInfo!.subscriptionStart!.toLocal())}\n\nNo functionality will work until the start time is reached.'
+                    : 'Your account has been registered successfully.\nYour admin or broker will activate it shortly.',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   color: cs.onSurfaceVariant,

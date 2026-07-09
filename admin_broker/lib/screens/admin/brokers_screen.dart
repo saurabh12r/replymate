@@ -568,6 +568,7 @@ class _BrokerDialogState extends ConsumerState<_BrokerDialog> {
   bool _loading = false;
 
   bool get isEdit => widget.broker != null;
+  List<String> _selectedPlanIds = [];
 
   @override
   void initState() {
@@ -581,6 +582,7 @@ class _BrokerDialogState extends ConsumerState<_BrokerDialog> {
         TextEditingController(text: b?.commissionPercent.toString() ?? '10');
     _maxUsersCtrl =
         TextEditingController(text: b?.maxUsers.toString() ?? '0');
+    _selectedPlanIds = b?.assignedPlanIds != null ? List<String>.from(b!.assignedPlanIds) : [];
   }
 
   @override
@@ -596,6 +598,7 @@ class _BrokerDialogState extends ConsumerState<_BrokerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final plansAsync = ref.watch(plansStreamProvider);
     return AlertDialog(
       title: Text(isEdit ? 'Edit Broker' : 'Add New Broker'),
       content: SizedBox(
@@ -682,6 +685,54 @@ class _BrokerDialogState extends ConsumerState<_BrokerDialog> {
                     return null;
                   },
                 ),
+                plansAsync.when(
+                  data: (plans) {
+                    if (plans.isEmpty) return const SizedBox.shrink();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 16),
+                        const Text('Assign Specific Plans',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor)),
+                        const SizedBox(height: 8),
+                        ...plans.map((plan) {
+                          final isChecked = _selectedPlanIds.contains(plan.planId);
+                          return CheckboxListTile(
+                            title: Text(
+                                '${plan.name} (${AppUtils.formatCurrency(plan.price)})'),
+                            subtitle: Text(plan.durationLabel),
+                            value: isChecked,
+                            dense: true,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.zero,
+                            onChanged: (val) {
+                              setState(() {
+                                if (val == true) {
+                                  _selectedPlanIds.add(plan.planId);
+                                } else {
+                                  _selectedPlanIds.remove(plan.planId);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ],
+                    );
+                  },
+                  loading: () => const Center(
+                      child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: CircularProgressIndicator(),
+                  )),
+                  error: (e, _) => Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text('Error loading plans: $e',
+                        style: const TextStyle(color: Colors.red, fontSize: 12)),
+                  ),
+                ),
               ],
             ),
           ),
@@ -721,6 +772,7 @@ class _BrokerDialogState extends ConsumerState<_BrokerDialog> {
           phone: _phoneCtrl.text.trim(),
           commissionPercent: double.parse(_commissionCtrl.text),
           maxUsers: int.parse(_maxUsersCtrl.text.trim()),
+          assignedPlanIds: _selectedPlanIds,
         );
         await fs.updateBroker(updated);
       } else {
@@ -740,6 +792,7 @@ class _BrokerDialogState extends ConsumerState<_BrokerDialog> {
           brokerCode: AppUtils.generateBrokerCode(),
           commissionPercent: double.parse(_commissionCtrl.text),
           maxUsers: int.parse(_maxUsersCtrl.text.trim()),
+          assignedPlanIds: _selectedPlanIds,
         );
         await fs.createBroker(broker);
 
@@ -1248,6 +1301,13 @@ class _BrokerUserAssignPlanDialog extends ConsumerStatefulWidget {
 class _BrokerUserAssignPlanDialogState extends ConsumerState<_BrokerUserAssignPlanDialog> {
   PlanModel? _selectedPlan;
   bool _loading = false;
+  DateTime _startDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _startDate = widget.user.subscriptionEnd ?? DateTime.now();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1276,6 +1336,50 @@ class _BrokerUserAssignPlanDialogState extends ConsumerState<_BrokerUserAssignPl
                       isDark: isDark,
                       onTap: () => setState(() => _selectedPlan = plan),
                     )),
+                const SizedBox(height: 16),
+                const Text('Start Date:', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _startDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setState(() => _startDate = picked);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_rounded, size: 18, color: AppTheme.primaryColor),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+                          style: TextStyle(color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (widget.user.isActive && widget.user.subscriptionEnd != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Note: Start Date defaults to current plan expiration date (${AppUtils.formatDate(widget.user.subscriptionEnd)}).',
+                    style: TextStyle(
+                      color: AppTheme.successColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ],
             );
           },
@@ -1341,8 +1445,8 @@ class _BrokerUserAssignPlanDialogState extends ConsumerState<_BrokerUserAssignPl
     try {
       final admin = ref.read(currentUserProvider).valueOrNull;
       final brokerId = widget.user.brokerId;
-      final brokerCommission = _selectedPlan!.price * 0.20;
-      final adminRevenue = _selectedPlan!.price * 0.80;
+      final brokerCommission = 0.0;
+      final adminRevenue = _selectedPlan!.price;
 
       if (isQueue) {
         await ref.read(firestoreServiceProvider).queueNextPlanForUser(
@@ -1353,6 +1457,7 @@ class _BrokerUserAssignPlanDialogState extends ConsumerState<_BrokerUserAssignPl
               brokerId: brokerId,
               brokerCommission: brokerCommission,
               adminRevenue: adminRevenue,
+              startDate: _startDate,
             );
       } else {
         await ref.read(firestoreServiceProvider).assignPlanToUser(
@@ -1363,6 +1468,7 @@ class _BrokerUserAssignPlanDialogState extends ConsumerState<_BrokerUserAssignPl
               brokerId: brokerId,
               brokerCommission: brokerCommission,
               adminRevenue: adminRevenue,
+              startDate: _startDate,
             );
       }
 

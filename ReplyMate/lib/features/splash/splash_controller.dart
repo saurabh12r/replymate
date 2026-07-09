@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/routes/app_routes.dart';
-import '../../core/services/auth/session_identity.dart';
 import '../../core/services/subscription/subscription_service.dart';
+import '../../core/services/permissions/permission_service.dart';
 
 /// SplashController — gates app entry based on subscription status
 class SplashController extends GetxController {
@@ -41,56 +42,26 @@ class SplashController extends GetxController {
         return;
       }
 
-      // ── Check subscription status before routing ──────────────────────────
-      final phone = sessionPhone(currentUser); // e.g. '+919022902102'
-      final info = await SubscriptionService.instance.getOnce(
-        currentUser.uid,
-        phone: phone,
-      );
-
-      switch (info.status) {
-        case SubscriptionStatus.active:
-          // Start real-time watcher for the session
-          SubscriptionService.instance.startWatching(
-            currentUser.uid,
-            phone: phone,
-          );
-          _go(Routes.dashboard);
-          break;
-
-        case SubscriptionStatus.pending:
-          SubscriptionService.instance.startWatching(
-            currentUser.uid,
-            phone: phone,
-          );
-          _go(Routes.pendingApproval);
-          break;
-
-        case SubscriptionStatus.expired:
-          _go(Routes.subscriptionExpired);
-          break;
-
-        case SubscriptionStatus.blocked:
-          _go(Routes.accountBlocked);
-          break;
-
-        case SubscriptionStatus.unknown:
-        case SubscriptionStatus.loading:
-          // No user doc yet (new user?) — send to dashboard, let dashboard handle
-          SubscriptionService.instance.startWatching(
-            currentUser.uid,
-            phone: phone,
-          );
-          _go(Routes.dashboard);
-          break;
-      }
+      final route = await SubscriptionService.instance.determineRouteForCurrentSession();
+      _go(route);
     });
   }
 
-  void _go(String route) {
+  void _go(String route) async {
     _fallbackTimer?.cancel();
     if (_navigated) return;
     _navigated = true;
+
+    if (route == Routes.dashboard) {
+      final permService = PermissionService();
+      final allGranted = await permService.checkAllPermissions();
+      final batteryOptimization = await Permission.ignoreBatteryOptimizations.isGranted;
+      if (!allGranted || !batteryOptimization) {
+        Get.offNamed(Routes.permissions);
+        return;
+      }
+    }
+
     Get.offNamed(route);
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import '../activity/activity_date_utils.dart';
 import '../activity/activity_log.dart';
 import '../activity/event_type.dart';
@@ -31,6 +32,8 @@ class ActivityAnalyticsSnapshot {
     required this.barBuckets,
     required this.whatsappChannelEvents,
     required this.smsDirectReplies,
+    required this.scheduledSent,
+    required this.vacationSent,
   });
 
   /// Rows matching the selected period filter.
@@ -59,6 +62,9 @@ class ActivityAnalyticsSnapshot {
 
   /// Replies sent via phone/SMS path (incoming + missed with replied).
   final int smsDirectReplies;
+
+  final int scheduledSent;
+  final int vacationSent;
 
   bool get hasLogsInPeriod => logsInPeriod > 0;
 }
@@ -98,14 +104,79 @@ class ActivityAnalyticsService {
     }
   }
 
-  /// Logs in [filter] range, newest first (for export).
+  /// Logs in filtered range, newest first (for export).
   static List<ActivityLog> logsForAnalyticsPeriod(
     Iterable<ActivityLog> logs,
-    AnalyticsFilter filter,
-  ) {
+    AnalyticsFilter filter, {
+    DateTimeRange? customRange,
+    String callFilter = 'All',
+    String messageFilter = 'All',
+    String statusFilter = 'All',
+  }) {
     final out = <ActivityLog>[];
     for (final log in logs) {
-      if (_inFilter(log.timestamp, filter)) out.add(log);
+      // 1. Date Filter
+      if (customRange != null) {
+        final start = DateTime(customRange.start.year, customRange.start.month, customRange.start.day);
+        final end = DateTime(customRange.end.year, customRange.end.month, customRange.end.day, 23, 59, 59, 999);
+        if (log.timestamp.isBefore(start) || log.timestamp.isAfter(end)) {
+          continue;
+        }
+      } else {
+        if (!_inFilter(log.timestamp, filter)) {
+          continue;
+        }
+      }
+
+      final isSms = log.type == EventType.scheduledSms || log.isVacation;
+      final isCall = !isSms;
+
+      // 2. Call Filter
+      if (callFilter != 'All') {
+        if (isSms) {
+          continue;
+        }
+        if (callFilter == 'Incoming' && log.type != EventType.incomingCall) {
+          continue;
+        }
+        if (callFilter == 'Outgoing' &&
+            log.type != EventType.outgoingAnswered &&
+            log.type != EventType.outgoingUnanswered) {
+          continue;
+        }
+        if (callFilter == 'Missed' && log.type != EventType.missedCall) {
+          continue;
+        }
+      }
+
+      // 3. Message Filter
+      if (messageFilter != 'All') {
+        if (isCall) {
+          continue;
+        }
+        if (messageFilter == 'Scheduled' && log.type != EventType.scheduledSms) {
+          continue;
+        }
+        if (messageFilter == 'Vacation' && !log.isVacation) {
+          continue;
+        }
+        if (messageFilter == 'Standard' && (log.type == EventType.scheduledSms || log.isVacation)) {
+          continue;
+        }
+      }
+
+      // 4. Status Filter
+      if (statusFilter != 'All') {
+        final isSuccess = log.replied;
+        if (statusFilter == 'Sent' && !isSuccess) {
+          continue;
+        }
+        if (statusFilter == 'Failed' && isSuccess) {
+          continue;
+        }
+      }
+
+      out.add(log);
     }
     out.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return out;
@@ -114,8 +185,12 @@ class ActivityAnalyticsService {
   /// Single pass: period filter + call stats + reply buckets (replied only).
   static ActivityAnalyticsSnapshot compute(
     Iterable<ActivityLog> logs,
-    AnalyticsFilter filter,
-  ) {
+    AnalyticsFilter filter, {
+    DateTimeRange? customRange,
+    String callFilter = 'All',
+    String messageFilter = 'All',
+    String statusFilter = 'All',
+  }) {
     var logsInPeriod = 0;
     var incoming = 0;
     var missed = 0;
@@ -127,10 +202,72 @@ class ActivityAnalyticsService {
     var repliedYes = 0;
     var repliedNo = 0;
     var smsReplies = 0;
+    var scheduledSent = 0;
+    var vacationSent = 0;
     final buckets = List<int>.filled(6, 0);
 
     for (final log in logs) {
-      if (!_inFilter(log.timestamp, filter)) continue;
+      // 1. Date Filter
+      if (customRange != null) {
+        final start = DateTime(customRange.start.year, customRange.start.month, customRange.start.day);
+        final end = DateTime(customRange.end.year, customRange.end.month, customRange.end.day, 23, 59, 59, 999);
+        if (log.timestamp.isBefore(start) || log.timestamp.isAfter(end)) {
+          continue;
+        }
+      } else {
+        if (!_inFilter(log.timestamp, filter)) {
+          continue;
+        }
+      }
+
+      final isSms = log.type == EventType.scheduledSms || log.isVacation;
+      final isCall = !isSms;
+
+      // 2. Call Filter
+      if (callFilter != 'All') {
+        if (isSms) {
+          continue;
+        }
+        if (callFilter == 'Incoming' && log.type != EventType.incomingCall) {
+          continue;
+        }
+        if (callFilter == 'Outgoing' &&
+            log.type != EventType.outgoingAnswered &&
+            log.type != EventType.outgoingUnanswered) {
+          continue;
+        }
+        if (callFilter == 'Missed' && log.type != EventType.missedCall) {
+          continue;
+        }
+      }
+
+      // 3. Message Filter
+      if (messageFilter != 'All') {
+        if (isCall) {
+          continue;
+        }
+        if (messageFilter == 'Scheduled' && log.type != EventType.scheduledSms) {
+          continue;
+        }
+        if (messageFilter == 'Vacation' && !log.isVacation) {
+          continue;
+        }
+        if (messageFilter == 'Standard' && (log.type == EventType.scheduledSms || log.isVacation)) {
+          continue;
+        }
+      }
+
+      // 4. Status Filter
+      if (statusFilter != 'All') {
+        final isSuccess = log.replied;
+        if (statusFilter == 'Sent' && !isSuccess) {
+          continue;
+        }
+        if (statusFilter == 'Failed' && isSuccess) {
+          continue;
+        }
+      }
+
       logsInPeriod++;
 
       switch (log.type) {
@@ -155,16 +292,27 @@ class ActivityAnalyticsService {
         case EventType.outgoingUnanswered:
           outUnans++;
           break;
+        case EventType.scheduledSms:
+          break;
       }
 
-      if (log.replied) {
-        repliedYes++;
-        buckets[_timeSlotIndex(log.timestamp)]++;
-        if (log.type != EventType.whatsappCall) {
-          smsReplies++;
+      if (log.type == EventType.scheduledSms) {
+        if (log.replied) {
+          scheduledSent++;
         }
       } else {
-        repliedNo++;
+        if (log.replied) {
+          repliedYes++;
+          buckets[_timeSlotIndex(log.timestamp)]++;
+          if (log.type != EventType.whatsappCall) {
+            smsReplies++;
+          }
+          if (log.isVacation) {
+            vacationSent++;
+          }
+        } else {
+          repliedNo++;
+        }
       }
     }
 
@@ -189,6 +337,8 @@ class ActivityAnalyticsService {
       barBuckets: barList,
       whatsappChannelEvents: wa,
       smsDirectReplies: smsReplies,
+      scheduledSent: scheduledSent,
+      vacationSent: vacationSent,
     );
   }
 }

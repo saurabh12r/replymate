@@ -23,6 +23,8 @@ import '../../features/logout/logout_binding.dart';
 import '../../features/subscription/subscription_status_views.dart';
 import '../../features/notifications/notifications_view.dart';
 import '../../features/notifications/notifications_binding.dart';
+import '../../features/permissions/permissions_view.dart';
+import '../../features/permissions/permissions_binding.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -145,6 +147,13 @@ class AppPages {
       page: () => const NotificationsView(),
       binding: NotificationsBinding(),
       transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: Routes.permissions,
+      page: () => const PermissionsView(),
+      binding: PermissionsBinding(),
+      transition: Transition.fadeIn,
       transitionDuration: const Duration(milliseconds: 300),
     ),
   ];

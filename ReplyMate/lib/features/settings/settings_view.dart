@@ -103,11 +103,9 @@ class SettingsView extends GetView<SettingsController> {
         children: [
           IconButton(
             onPressed: Get.back,
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
+            icon: const BackButtonIcon(),
+            color: Colors.white,
+            iconSize: 20,
           ),
           const SizedBox(width: 4),
           Column(

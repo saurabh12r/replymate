@@ -10,6 +10,7 @@ import '../../widgets/common/app_widgets.dart';
 import '../../widgets/common/status_badge.dart';
 import '../../models/replymet_user.dart';
 import '../../models/plan_model.dart';
+import '../../models/approval_model.dart';
 import '../../core/constants/app_constants.dart';
 
 class UsersScreen extends ConsumerStatefulWidget {
@@ -276,6 +277,48 @@ class _UserCardState extends ConsumerState<_UserCard> {
     );
   }
 
+  void _showRemovePlanConfirmation(BuildContext context, WidgetRef ref, ReplymetUser user) async {
+    final currentUser = ref.read(currentUserProvider).valueOrNull;
+    await ConfirmDialog.show(
+      context,
+      title: 'Remove Plan',
+      content: 'Are you sure you want to remove the subscription plan for "${user.name}"? This will cancel their active subscription and reset their status to pending.',
+      confirmText: 'Remove Plan',
+      confirmColor: AppTheme.errorColor,
+      onConfirm: () async {
+        await ref.read(firestoreServiceProvider).removeUserPlan(
+          user.uid,
+          performedBy: currentUser?.uid ?? 'admin',
+          performedByRole: 'admin',
+        );
+        if (context.mounted) {
+          showSnack(context, 'Subscription plan removed successfully');
+        }
+      },
+    );
+  }
+
+  void _showRemoveQueuePlanConfirmation(BuildContext context, WidgetRef ref, ReplymetUser user) async {
+    final currentUser = ref.read(currentUserProvider).valueOrNull;
+    await ConfirmDialog.show(
+      context,
+      title: 'Remove Queue Plan',
+      content: 'Are you sure you want to remove the queued subscription plan for "${user.name}"? This will cancel their next scheduled subscription plan.',
+      confirmText: 'Remove Queue Plan',
+      confirmColor: AppTheme.errorColor,
+      onConfirm: () async {
+        await ref.read(firestoreServiceProvider).removeQueuePlan(
+          user.uid,
+          performedBy: currentUser?.uid ?? 'admin',
+          performedByRole: 'admin',
+        );
+        if (context.mounted) {
+          showSnack(context, 'Queued subscription plan removed successfully');
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = widget.user;
@@ -436,6 +479,29 @@ class _UserCardState extends ConsumerState<_UserCard> {
                                               ),
                                             ],
                                           ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                user.hasBroker ? Icons.handshake_rounded : Icons.person_outline_rounded,
+                                                size: 11,
+                                                color: textSecondary.withOpacity(0.6),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  user.hasBroker ? 'Broker: ${user.brokerId}' : 'Direct Admin',
+                                                  style: TextStyle(
+                                                    color: textSecondary,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                           if (user.nextPlanId != null && user.nextPlanId!.isNotEmpty) ...[
                                             const SizedBox(height: 4),
                                             Container(
@@ -563,6 +629,34 @@ class _UserCardState extends ConsumerState<_UserCard> {
                                           ),
                                         ),
                                       ),
+                                    if (user.planId != null && user.planId!.isNotEmpty) ...[
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(Icons.bookmark_remove_outlined, size: 16),
+                                        color: AppTheme.warningColor,
+                                        tooltip: 'Remove Current Plan',
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: AppTheme.warningColor.withOpacity(0.08),
+                                          padding: const EdgeInsets.all(10),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        onPressed: () => _showRemovePlanConfirmation(context, ref, user),
+                                      ),
+                                    ],
+                                    if (user.nextPlanId != null && user.nextPlanId!.isNotEmpty) ...[
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(Icons.cancel_schedule_send_rounded, size: 16),
+                                        color: AppTheme.errorColor,
+                                        tooltip: 'Remove Queue Plan',
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: AppTheme.errorColor.withOpacity(0.08),
+                                          padding: const EdgeInsets.all(10),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        onPressed: () => _showRemoveQueuePlanConfirmation(context, ref, user),
+                                      ),
+                                    ],
                                     const SizedBox(width: 8),
                                     
                                     IconButton(
@@ -675,12 +769,39 @@ class _UserCardState extends ConsumerState<_UserCard> {
                                           color: AppTheme.primaryColor.withOpacity(0.8),
                                         ),
                                         const SizedBox(width: 6),
-                                        Text(
-                                          planName ?? (user.planId?.isNotEmpty == true ? user.planId! : 'No Active Plan'),
-                                          style: TextStyle(
-                                            color: textPrimary,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13,
+                                        Expanded(
+                                          child: Text(
+                                            planName ?? (user.planId?.isNotEmpty == true ? user.planId! : 'No Active Plan'),
+                                            style: TextStyle(
+                                              color: textPrimary,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          user.hasBroker ? Icons.handshake_rounded : Icons.person_outline_rounded,
+                                          size: 12,
+                                          color: textSecondary.withOpacity(0.6),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            user.hasBroker ? 'Broker: ${user.brokerId}' : 'Direct Admin',
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       ],
@@ -794,7 +915,32 @@ class _UserCardState extends ConsumerState<_UserCard> {
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                         ),
                                       ),
-                                    const SizedBox(width: 8),
+                                    if (user.planId != null && user.planId!.isNotEmpty) ...[
+                                      IconButton(
+                                        icon: const Icon(Icons.bookmark_remove_outlined, size: 16),
+                                        color: AppTheme.warningColor,
+                                        tooltip: 'Remove Current Plan',
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: AppTheme.warningColor.withOpacity(0.08),
+                                          padding: const EdgeInsets.all(8),
+                                        ),
+                                        onPressed: () => _showRemovePlanConfirmation(context, ref, user),
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ],
+                                    if (user.nextPlanId != null && user.nextPlanId!.isNotEmpty) ...[
+                                      IconButton(
+                                        icon: const Icon(Icons.cancel_schedule_send_rounded, size: 16),
+                                        color: AppTheme.errorColor,
+                                        tooltip: 'Remove Queue Plan',
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: AppTheme.errorColor.withOpacity(0.08),
+                                          padding: const EdgeInsets.all(8),
+                                        ),
+                                        onPressed: () => _showRemoveQueuePlanConfirmation(context, ref, user),
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ],
                                     IconButton(
                                       icon: const Icon(Icons.delete_outline_rounded, size: 16),
                                       color: AppTheme.errorColor,
@@ -856,6 +1002,13 @@ class _AssignPlanDialog extends ConsumerStatefulWidget {
 class _AssignPlanDialogState extends ConsumerState<_AssignPlanDialog> {
   PlanModel? _selectedPlan;
   bool _loading = false;
+  DateTime _startDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _startDate = widget.user.subscriptionEnd ?? DateTime.now();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -884,6 +1037,88 @@ class _AssignPlanDialogState extends ConsumerState<_AssignPlanDialog> {
                       isDark: isDark,
                       onTap: () => setState(() => _selectedPlan = plan),
                     )),
+                const SizedBox(height: 16),
+                const Text('Start Date:', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _startDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setState(() => _startDate = picked);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_rounded, size: 18, color: AppTheme.primaryColor),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+                          style: TextStyle(color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (widget.user.isActive && widget.user.subscriptionEnd != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Note: Start Date defaults to current plan expiration date (${AppUtils.formatDate(widget.user.subscriptionEnd)}).',
+                    style: TextStyle(
+                      color: AppTheme.successColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+                FutureBuilder<ApprovalModel?>(
+                  future: ref.read(firestoreServiceProvider).getLatestApprovalForUser(widget.user.uid),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData && snapshot.data != null) {
+                      final oldApp = snapshot.data!;
+                      final approvedAt = oldApp.approvedAt;
+                      if (approvedAt != null) {
+                        final diff = DateTime.now().difference(approvedAt);
+                        if (diff.inHours < 24) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.1),
+                                border: Border.all(color: Colors.amber),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 18),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Warning: A plan was assigned within the last 24 hours. Overriding it now will deduct/refund the old plan\'s revenue.',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.amber),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
               ],
             );
           },
@@ -949,8 +1184,8 @@ class _AssignPlanDialogState extends ConsumerState<_AssignPlanDialog> {
     try {
       final admin = ref.read(currentUserProvider).valueOrNull;
       final brokerId = widget.user.brokerId;
-      final brokerCommission = _selectedPlan!.price * 0.20;
-      final adminRevenue = _selectedPlan!.price * 0.80;
+      final brokerCommission = 0.0;
+      final adminRevenue = _selectedPlan!.price;
 
       if (isQueue) {
         await ref.read(firestoreServiceProvider).queueNextPlanForUser(
@@ -961,6 +1196,7 @@ class _AssignPlanDialogState extends ConsumerState<_AssignPlanDialog> {
               brokerId: brokerId,
               brokerCommission: brokerCommission,
               adminRevenue: adminRevenue,
+              startDate: _startDate,
             );
       } else {
         await ref.read(firestoreServiceProvider).assignPlanToUser(
@@ -971,6 +1207,7 @@ class _AssignPlanDialogState extends ConsumerState<_AssignPlanDialog> {
               brokerId: brokerId,
               brokerCommission: brokerCommission,
               adminRevenue: adminRevenue,
+              startDate: _startDate,
             );
       }
 

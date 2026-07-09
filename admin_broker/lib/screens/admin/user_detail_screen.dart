@@ -216,6 +216,34 @@ class _ProfileCard extends ConsumerWidget {
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                       ),
+                    ] else ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'NO BROKER (DIRECT)',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.grey),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          _showAssignBrokerDialog(context, ref, user);
+                        },
+                        icon: const Icon(Icons.handshake_rounded, size: 12),
+                        label: const Text('Assign to Broker', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          side: const BorderSide(color: AppTheme.primaryColor),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -1060,6 +1088,123 @@ class _RoleBadge extends StatelessWidget {
           color: badgeColor,
         ),
       ),
+    );
+  }
+}
+
+void _showAssignBrokerDialog(BuildContext context, WidgetRef ref, ReplymetUser user) {
+  showDialog(
+    context: context,
+    builder: (_) => _AssignBrokerDialog(user: user),
+  );
+}
+
+class _AssignBrokerDialog extends ConsumerStatefulWidget {
+  final ReplymetUser user;
+  const _AssignBrokerDialog({required this.user});
+
+  @override
+  ConsumerState<_AssignBrokerDialog> createState() => _AssignBrokerDialogState();
+}
+
+class _AssignBrokerDialogState extends ConsumerState<_AssignBrokerDialog> {
+  String? _selectedBrokerId;
+  bool _loading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final brokersAsync = ref.watch(brokersStreamProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+
+    return AlertDialog(
+      title: Text('Assign "${widget.user.name}" to Broker'),
+      content: SizedBox(
+        width: 400,
+        child: brokersAsync.when(
+          data: (brokers) {
+            final activeBrokers = brokers.where((b) => b.isActive).toList();
+            if (activeBrokers.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text('No active brokers found.'),
+              );
+            }
+
+            return DropdownButtonFormField<String>(
+              value: _selectedBrokerId,
+              hint: const Text('Select a Broker'),
+              decoration: const InputDecoration(
+                labelText: 'Broker',
+                prefixIcon: Icon(Icons.handshake_rounded),
+              ),
+              dropdownColor: isDark ? AppTheme.darkCard : Colors.white,
+              items: activeBrokers.map((b) {
+                return DropdownMenuItem<String>(
+                  value: b.brokerId,
+                  child: Text(
+                    '${b.name} (${b.brokerCode})',
+                    style: TextStyle(color: textPrimary),
+                  ),
+                );
+              }).toList(),
+              onChanged: (val) {
+                setState(() {
+                  _selectedBrokerId = val;
+                });
+              },
+            );
+          },
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: CircularProgressIndicator(),
+            ),
+          ),
+          error: (err, _) => Text('Error loading brokers: $err', style: const TextStyle(color: AppTheme.errorColor)),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _loading || _selectedBrokerId == null
+              ? null
+              : () async {
+                  setState(() => _loading = true);
+                  try {
+                    await ref.read(firestoreServiceProvider).assignUserToBroker(
+                          widget.user.uid,
+                          _selectedBrokerId!,
+                        );
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                      showSnack(context, 'User successfully assigned to broker');
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      showSnack(context, e.toString().replaceAll('Exception: ', ''), isError: true);
+                    }
+                  } finally {
+                    if (mounted) {
+                      setState(() => _loading = false);
+                    }
+                  }
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primaryColor,
+          ),
+          child: _loading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('Assign'),
+        ),
+      ],
     );
   }
 }

@@ -13,7 +13,8 @@ import '../../core/contact_filter/contact_filter_phone_normalize.dart';
 enum RecipientMode { selectedContacts, contactControl }
 
 class ScheduleMessageFormView extends StatefulWidget {
-  const ScheduleMessageFormView({super.key});
+  final ScheduledMessage? messageToEdit;
+  const ScheduleMessageFormView({super.key, this.messageToEdit});
 
   @override
   State<ScheduleMessageFormView> createState() =>
@@ -24,6 +25,7 @@ class _ScheduleMessageFormViewState extends State<ScheduleMessageFormView> {
   final _phoneCtrl = TextEditingController();
   final _messageCtrl = TextEditingController();
   final _searchCtrl = TextEditingController();
+  final _titleCtrl = TextEditingController();
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   RecipientMode _recipientMode = RecipientMode.selectedContacts;
@@ -36,7 +38,29 @@ class _ScheduleMessageFormViewState extends State<ScheduleMessageFormView> {
   @override
   void initState() {
     super.initState();
-    _loadContacts();
+    _loadContacts().then((_) {
+      if (widget.messageToEdit != null) {
+        final msg = widget.messageToEdit!;
+        _titleCtrl.text = msg.title;
+        _messageCtrl.text = msg.message;
+        _selectedDate = msg.scheduledTime;
+        _selectedTime = TimeOfDay.fromDateTime(msg.scheduledTime);
+        _recipientMode = RecipientMode.selectedContacts;
+
+        for (final num in msg.phoneNumbers) {
+          final digits = contactFilterNormalizeRawToCanonical(num);
+          _selectedContactDigits.add(digits);
+          if (!_allContacts.any((c) => c.digitsKey == digits)) {
+            _allContacts.add(_ContactPhoneRow(
+              displayName: num,
+              phoneDisplay: num,
+              digitsKey: digits,
+            ));
+          }
+        }
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -44,6 +68,7 @@ class _ScheduleMessageFormViewState extends State<ScheduleMessageFormView> {
     _phoneCtrl.dispose();
     _messageCtrl.dispose();
     _searchCtrl.dispose();
+    _titleCtrl.dispose();
     super.dispose();
   }
 
@@ -261,24 +286,41 @@ class _ScheduleMessageFormViewState extends State<ScheduleMessageFormView> {
       return;
     }
 
-    final msgs = targetNumbers
-        .map(
-          (num) => ScheduledMessage(
-            id: const Uuid().v4(),
-            phoneNumber: num,
-            message: _messageCtrl.text.trim(),
-            scheduledTime: scheduledTime,
-          ),
-        )
-        .toList();
+    final titleText = _titleCtrl.text.trim().isEmpty ? 'Scheduled Msg' : _titleCtrl.text.trim();
 
-    Get.find<ScheduledMessagesController>().addMessages(msgs);
-    Get.back();
-    Get.snackbar(
-      'Success',
-      '${msgs.length} message(s) scheduled successfully',
-      snackPosition: SnackPosition.BOTTOM,
-    );
+    if (widget.messageToEdit != null) {
+      final oldMsg = widget.messageToEdit!;
+      final newMsg = ScheduledMessage(
+        id: oldMsg.id,
+        title: titleText,
+        phoneNumbers: targetNumbers,
+        message: _messageCtrl.text.trim(),
+        scheduledTime: scheduledTime,
+      );
+      await Get.find<ScheduledMessagesController>().editMessage(oldMsg, newMsg);
+      Get.back(); // close form view
+      Get.back(); // return to details view
+      Get.snackbar(
+        'Success',
+        'Scheduled message updated successfully',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } else {
+      final newMsg = ScheduledMessage(
+        id: const Uuid().v4(),
+        title: titleText,
+        phoneNumbers: targetNumbers,
+        message: _messageCtrl.text.trim(),
+        scheduledTime: scheduledTime,
+      );
+      await Get.find<ScheduledMessagesController>().addMessage(newMsg);
+      Get.back(); // close form view
+      Get.snackbar(
+        'Success',
+        'Message scheduled successfully',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   @override
@@ -294,7 +336,7 @@ class _ScheduleMessageFormViewState extends State<ScheduleMessageFormView> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'New Schedule',
+          widget.messageToEdit != null ? 'Edit Schedule' : 'New Schedule',
           style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
         ),
         backgroundColor: theme.scaffoldBackgroundColor,
@@ -305,6 +347,24 @@ class _ScheduleMessageFormViewState extends State<ScheduleMessageFormView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'Title',
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _titleCtrl,
+              decoration: InputDecoration(
+                hintText: 'Enter a title for this schedule...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             Text(
               'Recipient',
               style: GoogleFonts.manrope(
@@ -587,7 +647,7 @@ class _ScheduleMessageFormViewState extends State<ScheduleMessageFormView> {
                   ),
                 ),
                 child: Text(
-                  'Schedule Message',
+                  widget.messageToEdit != null ? 'Update Schedule' : 'Schedule Message',
                   style: GoogleFonts.manrope(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,

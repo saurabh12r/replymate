@@ -58,13 +58,6 @@
       ]
     },
     {
-      "collectionGroup": "approvals",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "approvedAt", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "activity_logs",
       "queryScope": "COLLECTION",
       "fields": [
@@ -73,10 +66,58 @@
       ]
     },
     {
-      "collectionGroup": "plans",
+      "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isActive", "order": "ASCENDING" }
+        { "fieldPath": "targetRole", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "targetRole", "order": "ASCENDING" },
+        { "fieldPath": "targetId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "user_activities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "campaigns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "senderId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "subscriptionEnd", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "daily",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "monthly",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "__name__", "order": "DESCENDING" }
       ]
     }
   ],

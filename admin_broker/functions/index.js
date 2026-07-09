@@ -76,8 +76,9 @@ exports.autoExpireSubscriptions = onSchedule(
           const nextPlanId = userData.nextPlanId;
           const planInfo = await getPlanInfo(nextPlanId);
 
-          const startDate = new Date();
-          const endDate = new Date(startDate.getTime() + planInfo.durationDays * 24 * 60 * 60 * 1000);
+          const startDate = userData.nextPlanStartDate ? userData.nextPlanStartDate.toDate() : new Date();
+          const durationDays = userData.nextPlanDurationDays || planInfo.durationDays || 30;
+          const endDate = userData.nextPlanEndDate ? userData.nextPlanEndDate.toDate() : new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
           batch.update(doc.ref, {
             isApproved: true,
@@ -89,6 +90,8 @@ exports.autoExpireSubscriptions = onSchedule(
             nextPlanId: FieldValue.delete(),
             nextPlanName: FieldValue.delete(),
             nextPlanDurationDays: FieldValue.delete(),
+            nextPlanStartDate: FieldValue.delete(),
+            nextPlanEndDate: FieldValue.delete(),
             updatedAt: FieldValue.serverTimestamp(),
           });
           queuedActivatedCount++;
@@ -118,7 +121,7 @@ exports.sendExpiryWarnings = onSchedule(
   { schedule: '0 9 * * *', timeZone: 'Asia/Kolkata', region: 'asia-south1' },
   async (_event) => {
     const now = new Date();
-    // Query users expiring within the next 2 days
+    // Query users expiring within the next 2 days (so we catch those expiring in ~1 day)
     const twoDaysLater = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
     const snap = await db
@@ -133,44 +136,80 @@ exports.sendExpiryWarnings = onSchedule(
 
     for (const doc of snap.docs) {
       const data = doc.data();
-      const fcmToken = data.fcmToken;
-      if (!fcmToken) continue;
 
+      // Only notify if there is no queue plan
+      if (data.nextPlanId && data.nextPlanId.trim() !== '') {
+        continue;
+      }
+
+      const fcmToken = data.fcmToken;
       const subEnd = data.subscriptionEnd.toDate();
       const daysLeft = Math.ceil((subEnd - now) / (1000 * 60 * 60 * 24));
 
-      // Send notifications exactly on 2 days, 1 day, and 0 days (today)
-      if (daysLeft === 2 || daysLeft === 1 || daysLeft === 0) {
-        let title = '⚠️ Subscription Expiring Soon';
-        let body = `Your ReplyMate subscription expires in 2 days. Contact your admin/broker to renew.`;
-        
-        if (daysLeft === 1) {
-          title = '⏰ Subscription Expires Tomorrow';
-          body = 'Your ReplyMate subscription expires tomorrow. Please renew to avoid interruption.';
-        } else if (daysLeft === 0) {
-          title = '🚨 Subscription Expires Today';
-          body = 'Your ReplyMate subscription expires today. Renew immediately to keep auto-reply active.';
+      // We notify exactly 1 day before the plan is going to expire
+      if (daysLeft === 1) {
+        const title = '⏰ Subscription Expires Tomorrow';
+        const body = 'Your ReplyMate subscription expires tomorrow. Please renew to avoid interruption.';
+
+        // 1. Send FCM Push Notification to the user
+        if (fcmToken) {
+          try {
+            await messaging.send({
+              token: fcmToken,
+              notification: {
+                title: title,
+                body: body,
+              },
+              data: {
+                type: 'subscription_expiry_warning',
+                daysLeft: String(daysLeft),
+              },
+              android: { 
+                priority: 'high',
+                notification: { sound: 'default' }
+              },
+            });
+            notified++;
+          } catch (e) {
+            logger.warn(`FCM failed for ${doc.id}: ${e.message}`);
+          }
         }
 
+        // 2. Create in-app notification for Admin
         try {
-          await messaging.send({
-            token: fcmToken,
-            notification: {
-              title: title,
-              body: body,
-            },
-            data: {
-              type: 'subscription_expiry_warning',
-              daysLeft: String(daysLeft),
-            },
-            android: { 
-              priority: 'high',
-              notification: { sound: 'default' }
-            },
+          const adminNotificationId = 'exp_' + doc.id + '_' + Date.now() + '_admin';
+          await db.collection('notifications').doc(adminNotificationId).set({
+            title: 'Subscription Expiring Tomorrow',
+            message: `${data.name || 'User'}'s subscription expires tomorrow.`,
+            type: 'subscriptionExpiringSoon',
+            userId: doc.id,
+            userName: data.name || '',
+            userPhone: data.phone || '',
+            targetRole: 'admin',
+            createdAt: Timestamp.now(),
           });
-          notified++;
         } catch (e) {
-          logger.warn(`FCM failed for ${doc.id}: ${e.message}`);
+          logger.warn(`Failed to create admin notification for ${doc.id}: ${e.message}`);
+        }
+
+        // 3. Create in-app notification for Broker (if exists)
+        if (data.brokerId) {
+          try {
+            const brokerNotificationId = 'exp_' + doc.id + '_' + Date.now() + '_broker';
+            await db.collection('notifications').doc(brokerNotificationId).set({
+              title: 'Subscription Expiring Tomorrow',
+              message: `${data.name || 'User'}'s subscription expires tomorrow.`,
+              type: 'subscriptionExpiringSoon',
+              userId: doc.id,
+              userName: data.name || '',
+              userPhone: data.phone || '',
+              targetRole: 'broker',
+              targetId: data.brokerId,
+              createdAt: Timestamp.now(),
+            });
+          } catch (e) {
+            logger.warn(`Failed to create broker notification for ${doc.id}: ${e.message}`);
+          }
         }
       }
     }
@@ -195,24 +234,45 @@ exports.onUserApproved = onDocumentUpdated(
 
     // Approved: false → true
     if (before.isApproved === false && after.isApproved === true && fcmToken) {
+      const subStart = after.subscriptionStart?.toDate();
       const subEnd = after.subscriptionEnd?.toDate();
       const subEndStr = subEnd
         ? `${subEnd.getDate()} ${_monthName(subEnd.getMonth())} ${subEnd.getFullYear()}`
         : 'N/A';
 
+      const now = new Date();
+      const isFutureStart = subStart && subStart > now;
+
       try {
-        await getMessaging().send({
-          token: fcmToken,
-          notification: {
-            title: '✅ Account Activated!',
-            body: `Your ReplyMate account is now active. Subscription valid until ${subEndStr}.`,
-          },
-          data: {
-            type: 'account_approved',
-            subscriptionEnd: subEnd ? subEnd.toISOString() : '',
-          },
-          android: { priority: 'high' },
-        });
+        if (isFutureStart) {
+          const subStartStr = `${subStart.getDate()} ${_monthName(subStart.getMonth())} ${subStart.getFullYear()}`;
+          await getMessaging().send({
+            token: fcmToken,
+            notification: {
+              title: '📅 Subscription Scheduled!',
+              body: `Your ReplyMate subscription has been approved and is scheduled to start on ${subStartStr}.`,
+            },
+            data: {
+              type: 'account_approved_scheduled',
+              subscriptionStart: subStart.toISOString(),
+              subscriptionEnd: subEnd ? subEnd.toISOString() : '',
+            },
+            android: { priority: 'high' },
+          });
+        } else {
+          await getMessaging().send({
+            token: fcmToken,
+            notification: {
+              title: '✅ Account Activated!',
+              body: `Your ReplyMate account is now active. Subscription valid until ${subEndStr}.`,
+            },
+            data: {
+              type: 'account_approved',
+              subscriptionEnd: subEnd ? subEnd.toISOString() : '',
+            },
+            android: { priority: 'high' },
+          });
+        }
         logger.info(`onUserApproved: FCM sent to user ${event.params.userId}`);
       } catch (e) {
         logger.warn(`onUserApproved FCM failed: ${e.message}`);

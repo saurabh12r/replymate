@@ -24,22 +24,29 @@ class DashboardNavView extends GetView<DashboardNavController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Obx(
-          () => IndexedStack(
-            index: controller.selectedIndex.value,
-            children: const [
-              DashboardHomeTab(),
-              LogsNavView(),
-              StoresListView(showBack: false),
-              ProfileTab(),
-            ],
+    return Obx(
+      () => PopScope(
+        canPop: controller.selectedIndex.value == 0,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          controller.selectedIndex.value = 0;
+        },
+        child: Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: SafeArea(
+            child: IndexedStack(
+              index: controller.selectedIndex.value,
+              children: const [
+                DashboardHomeTab(),
+                LogsNavView(),
+                StoresListView(showBack: false),
+                ProfileTab(),
+              ],
+            ),
           ),
+          bottomNavigationBar: _buildBottomNav(context),
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(context),
     );
   }
 

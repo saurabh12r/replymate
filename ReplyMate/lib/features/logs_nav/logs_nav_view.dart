@@ -13,7 +13,9 @@ import '../../core/activity/activity_time_format.dart';
 import '../../core/activity/event_type.dart';
 import '../../core/activity/filter_type.dart';
 import '../../core/activity/log_filter_type.dart';
+import '../../core/theme/upcoming_feature_dialog.dart';
 import 'logs_nav_controller.dart';
+import 'activity_log_history_view.dart';
 
 /// Activity logs — Hive-backed, real-time list with filters.
 class LogsNavView extends GetView<LogsNavController> {
@@ -71,7 +73,7 @@ class LogsNavView extends GetView<LogsNavController> {
                     valueListenable: ActivityLogService.instance.box
                         .listenable(),
                     builder: (_, box, __) => Text(
-                      '${box.length} total entries',
+                      '${box.values.where((e) => e.type != EventType.scheduledSms).length} total entries',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: Colors.white.withAlpha(180),
@@ -229,7 +231,13 @@ class LogsNavView extends GetView<LogsNavController> {
           return Obx(() {
             final selected = controller.selectedFilter.value == f;
             return GestureDetector(
-              onTap: () => controller.setFilter(f),
+              onTap: () {
+                if (f == FilterType.whatsapp) {
+                  showUpcomingFeatureDialog(context, featureName: 'WhatsApp Call Logs');
+                } else {
+                  controller.setFilter(f);
+                }
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 alignment: Alignment.center,
@@ -555,6 +563,8 @@ class ActivityLogCard extends StatelessWidget {
         return const Color(0xFF1565C0);
       case EventType.outgoingUnanswered:
         return const Color(0xFF6A1B9A);
+      case EventType.scheduledSms:
+        return Colors.orange;
     }
   }
 
@@ -574,6 +584,8 @@ class ActivityLogCard extends StatelessWidget {
         return Icons.call_made_rounded;
       case EventType.outgoingUnanswered:
         return Icons.phone_missed_rounded;
+      case EventType.scheduledSms:
+        return Icons.schedule_rounded;
     }
   }
 
@@ -609,6 +621,16 @@ class ActivityLogCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
+        onTap: () {
+          if (log.type == EventType.whatsappCall) {
+            showUpcomingFeatureDialog(context, featureName: 'WhatsApp Call History');
+          } else {
+            Get.to(() => ActivityLogHistoryView(
+                  phoneNumber: log.phoneNumber,
+                  name: log.name,
+                ));
+          }
+        },
         onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(16),
         child: Container(
@@ -755,6 +777,8 @@ class ActivityLogCard extends StatelessWidget {
         return 'Outgoing (Answered)';
       case EventType.outgoingUnanswered:
         return 'Outgoing (No Answer)';
+      case EventType.scheduledSms:
+        return 'Scheduled SMS';
     }
   }
 }

@@ -10,6 +10,7 @@ import '../../widgets/common/app_widgets.dart';
 import '../../widgets/common/status_badge.dart';
 import '../../models/replymet_user.dart';
 import '../../models/plan_model.dart';
+import '../../models/approval_model.dart';
 import '../../core/constants/app_constants.dart';
 
 class BrokerExpiredUsersScreen extends ConsumerStatefulWidget {
@@ -281,10 +282,11 @@ class _BrokerAssignPlanDialog extends ConsumerStatefulWidget {
 class _BrokerAssignPlanDialogState extends ConsumerState<_BrokerAssignPlanDialog> {
   PlanModel? _selectedPlan;
   bool _loading = false;
+  DateTime _startDate = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
-    final plansAsync = ref.watch(plansStreamProvider);
+    final plansAsync = ref.watch(brokerAssignedPlansProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AlertDialog(
@@ -310,6 +312,77 @@ class _BrokerAssignPlanDialogState extends ConsumerState<_BrokerAssignPlanDialog
                       isDark: isDark,
                       onTap: () => setState(() => _selectedPlan = plan),
                     )),
+                const SizedBox(height: 16),
+                const Text('Start Date:', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _startDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setState(() => _startDate = picked);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_rounded, size: 18, color: AppTheme.primaryColor),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+                          style: TextStyle(color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                FutureBuilder<ApprovalModel?>(
+                  future: ref.read(firestoreServiceProvider).getLatestApprovalForUser(widget.user.uid),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData && snapshot.data != null) {
+                      final oldApp = snapshot.data!;
+                      final approvedAt = oldApp.approvedAt;
+                      if (approvedAt != null) {
+                        final diff = DateTime.now().difference(approvedAt);
+                        if (diff.inHours < 24) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.1),
+                                border: Border.all(color: Colors.amber),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 18),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Warning: A plan was assigned within the last 24 hours. Overriding it now will deduct/refund the old plan\'s revenue.',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.amber),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
               ],
             );
           },
@@ -345,8 +418,9 @@ class _BrokerAssignPlanDialogState extends ConsumerState<_BrokerAssignPlanDialog
     try {
       final broker = ref.read(currentBrokerProvider).valueOrNull;
       final brokerId = broker?.brokerId;
-      final brokerCommission = _selectedPlan!.price * 0.20;
-      final adminRevenue = _selectedPlan!.price * 0.80;
+      final commissionPercent = broker?.commissionPercent ?? 20.0;
+      final brokerCommission = _selectedPlan!.price * commissionPercent / 100;
+      final adminRevenue = _selectedPlan!.price - brokerCommission;
 
       await ref.read(firestoreServiceProvider).assignPlanToUser(
             userId: widget.user.uid,
@@ -356,6 +430,7 @@ class _BrokerAssignPlanDialogState extends ConsumerState<_BrokerAssignPlanDialog
             brokerId: brokerId,
             brokerCommission: brokerCommission,
             adminRevenue: adminRevenue,
+            startDate: _startDate,
           );
 
       if (mounted) {

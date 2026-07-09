@@ -72,27 +72,50 @@ class ScheduledMessagesController extends GetxController {
   }
 
   Future<void> removeMessage(String id) async {
-    messages.removeWhere((m) => m.id == id);
+    final idx = messages.indexWhere((m) => m.id == id);
+    if (idx != -1) {
+      final msg = messages[idx];
+      messages.removeAt(idx);
+      await _saveMessages();
+      await _cancelNative(msg.id, msg.phoneNumbers);
+    }
+  }
+
+  Future<void> editMessage(ScheduledMessage oldMsg, ScheduledMessage newMsg) async {
+    await _cancelNative(oldMsg.id, oldMsg.phoneNumbers);
+    final idx = messages.indexWhere((m) => m.id == oldMsg.id);
+    if (idx != -1) {
+      messages[idx] = newMsg;
+    } else {
+      messages.add(newMsg);
+    }
+    _sortMessages();
     await _saveMessages();
-    await _cancelNative(id);
+    await _scheduleNative(newMsg);
   }
 
   Future<void> _scheduleNative(ScheduledMessage msg) async {
     try {
-      await _channel.invokeMethod('scheduleSms', {
-        'id': msg.id,
-        'phoneNumber': msg.phoneNumber,
-        'message': msg.message,
-        'timeMillis': msg.scheduledTime.millisecondsSinceEpoch,
-      });
+      for (final phone in msg.phoneNumbers) {
+        final compositeId = '${msg.id}_$phone';
+        await _channel.invokeMethod('scheduleSms', {
+          'id': compositeId,
+          'phoneNumber': phone,
+          'message': msg.message,
+          'timeMillis': msg.scheduledTime.millisecondsSinceEpoch,
+        });
+      }
     } on PlatformException catch (e) {
       print("Failed to schedule native SMS: '${e.message}'.");
     }
   }
 
-  Future<void> _cancelNative(String id) async {
+  Future<void> _cancelNative(String id, List<String> phoneNumbers) async {
     try {
-      await _channel.invokeMethod('cancelScheduledSms', {'id': id});
+      for (final phone in phoneNumbers) {
+        final compositeId = '${id}_$phone';
+        await _channel.invokeMethod('cancelScheduledSms', {'id': compositeId});
+      }
     } on PlatformException catch (e) {
       print("Failed to cancel native SMS: '${e.message}'.");
     }

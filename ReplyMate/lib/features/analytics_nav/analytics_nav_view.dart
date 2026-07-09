@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/activity/activity_log.dart';
 import '../../core/activity/activity_log_service.dart';
@@ -21,9 +22,14 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
       builder: (context, box, _) {
         final logs = box.values.toList();
         return Obx(() {
+          final filteredLogs = controller.applyFilters(logs);
           final snap = ActivityAnalyticsService.compute(
-            logs,
+            filteredLogs,
             controller.selectedFilter.value,
+            customRange: controller.customDateRange.value,
+            callFilter: controller.callFilter.value,
+            messageFilter: controller.messageFilter.value,
+            statusFilter: controller.statusFilter.value,
           );
           final insights = ActivityLogInsights.compute(logs);
           return Scaffold(
@@ -40,6 +46,8 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       _PeriodChips(controller: controller),
+                      const SizedBox(height: 16),
+                      _InteractiveFilters(controller: controller),
                       const SizedBox(height: 24),
                       if (!snap.hasLogsInPeriod) ...[
                         _EmptyState(),
@@ -60,7 +68,7 @@ class AnalyticsNavView extends GetView<AnalyticsNavController> {
                         const SizedBox(height: 12),
                         _ChannelsCard(snap: snap),
                         const SizedBox(height: 32),
-                        _DownloadCard(controller: controller, logs: logs),
+                        _DownloadCard(controller: controller, logs: filteredLogs),
                       ],
                     ]),
                   ),
@@ -120,6 +128,13 @@ class _SliverHeroHeader extends StatelessWidget {
               children: [
                 Row(
                   children: [
+                    if (Navigator.canPop(context))
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const BackButtonIcon(),
+                        color: Colors.white,
+                        iconSize: 20,
+                      ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -727,6 +742,18 @@ class _BreakdownGrid extends StatelessWidget {
         Icons.send_rounded,
         const Color(0xFF00897B),
       ),
+      _StatItem(
+        'Scheduled Sent',
+        '${snap.scheduledSent}',
+        Icons.schedule_rounded,
+        Colors.orange,
+      ),
+      _StatItem(
+        'Vacation Sent',
+        '${snap.vacationSent}',
+        Icons.beach_access_rounded,
+        Colors.purple,
+      ),
     ];
     return GridView.count(
       crossAxisCount: 2,
@@ -1038,6 +1065,212 @@ class _DownloadCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Interactive filters ──────────────────────────────────────────────────────
+class _InteractiveFilters extends StatelessWidget {
+  const _InteractiveFilters({required this.controller});
+  final AnalyticsNavController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Obx(() {
+      final range = controller.customDateRange.value;
+      final callVal = controller.callFilter.value;
+      final msgVal = controller.messageFilter.value;
+      final statusVal = controller.statusFilter.value;
+
+      final hasActiveFilters = range != null ||
+          callVal != 'All' ||
+          msgVal != 'All' ||
+          statusVal != 'All';
+
+      return Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: cs.outlineVariant.withAlpha(50)),
+        ),
+        color: cs.surfaceContainerLow,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.filter_list_rounded, size: 20, color: cs.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Interactive Filters',
+                        style: GoogleFonts.manrope(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (hasActiveFilters)
+                    GestureDetector(
+                      onTap: controller.resetFilters,
+                      child: Text(
+                        'Reset All',
+                        style: GoogleFonts.manrope(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: cs.primary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              
+              // Custom Date Range Picker Button
+              GestureDetector(
+                onTap: () => controller.selectCustomDateRange(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: cs.outlineVariant.withAlpha(80)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.date_range_rounded, size: 18, color: cs.onSurfaceVariant),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          range == null
+                              ? 'Select Custom Date Range'
+                              : '${DateFormat('dd MMM yyyy').format(range.start)} - ${DateFormat('dd MMM yyyy').format(range.end)}',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: range == null ? cs.onSurfaceVariant : cs.onSurface,
+                          ),
+                        ),
+                      ),
+                      if (range != null)
+                        GestureDetector(
+                          onTap: () => controller.customDateRange.value = null,
+                          child: Icon(Icons.close_rounded, size: 16, color: cs.error),
+                        )
+                      else
+                        Icon(Icons.chevron_right_rounded, size: 18, color: cs.onSurfaceVariant),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Filter Rows List
+              _FilterRow(
+                icon: Icons.call_rounded,
+                label: 'Calls Filter',
+                value: callVal,
+                items: const ['All', 'All Calls', 'Incoming', 'Outgoing', 'Missed'],
+                onChanged: (val) => controller.callFilter.value = val!,
+              ),
+              Divider(height: 20, color: cs.outlineVariant.withAlpha(50)),
+              _FilterRow(
+                icon: Icons.message_rounded,
+                label: 'Messages Filter',
+                value: msgVal,
+                items: const ['All', 'Standard', 'Scheduled', 'Vacation'],
+                onChanged: (val) => controller.messageFilter.value = val!,
+              ),
+              Divider(height: 20, color: cs.outlineVariant.withAlpha(50)),
+              _FilterRow(
+                icon: Icons.check_circle_rounded,
+                label: 'Status Filter',
+                value: statusVal,
+                items: const ['All', 'Sent', 'Failed'],
+                onChanged: (val) => controller.statusFilter.value = val!,
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+}
+
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: cs.onSurfaceVariant),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: cs.onSurface,
+          ),
+        ),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: cs.outlineVariant.withAlpha(50)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              items: items
+                  .map((item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(
+                          item,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ))
+                  .toList(),
+              onChanged: onChanged,
+              style: TextStyle(color: cs.primary),
+              dropdownColor: cs.surfaceContainerHigh,
+              icon: Icon(
+                Icons.arrow_drop_down_rounded,
+                color: cs.primary,
+                size: 20,
+              ),
+              isDense: true,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

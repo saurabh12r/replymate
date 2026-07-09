@@ -18,7 +18,8 @@ object ActivityLogPendingStore {
         phone: String?,
         name: String?,
         replied: Boolean,
-        messageSent: String = ""
+        messageSent: String = "",
+        isVacation: Boolean = false
     ) {
         val normalizedPhone = phone?.trim().orEmpty()
         val normalizedName = name?.trim().orEmpty()
@@ -33,6 +34,7 @@ object ActivityLogPendingStore {
             put("replied", replied)
             put("messageSent", msg)
             put("timestamp", ts)
+            put("isVacation", isVacation)
         }
         appendRawLine(context, json.toString())
     }

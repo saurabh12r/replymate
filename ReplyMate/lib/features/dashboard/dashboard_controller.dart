@@ -66,6 +66,7 @@ class DashboardController extends GetxController {
   final RxBool eventChannelListening = false.obs;
   final RxString lastEngineEventLine = ''.obs;
   StreamSubscription<dynamic>? _eventSub;
+  StreamSubscription<dynamic>? _profileSubscription;
   Timer? _syncDebounce;
   bool _autoReplyEventStreamAttached = false;
 
@@ -74,6 +75,7 @@ class DashboardController extends GetxController {
     super.onInit();
     _loadAutoReplyState();
     _attachAutoReplyEventStream();
+    _bindProfile();
   }
 
   @override
@@ -316,10 +318,50 @@ class DashboardController extends GetxController {
     }
   }
 
+  void _bindProfile() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      userName.value = 'User';
+      return;
+    }
+
+    final phoneNumber = currentUser.phoneNumber;
+    await _profileSubscription?.cancel();
+
+    if (phoneNumber != null && phoneNumber.isNotEmpty) {
+      _profileSubscription = _userRepository.watchUserByPhone(phoneNumber).listen(
+        (data) {
+          if (data != null) {
+            userName.value = (data['name'] as String?) ?? 'User';
+          } else {
+            userName.value = 'User';
+          }
+        },
+        onError: (_) {
+          userName.value = 'User';
+        },
+      );
+    } else {
+      _profileSubscription = _userRepository.watchUserByUid(currentUser.uid).listen(
+        (data) {
+          if (data != null) {
+            userName.value = data.name;
+          } else {
+            userName.value = 'User';
+          }
+        },
+        onError: (_) {
+          userName.value = 'User';
+        },
+      );
+    }
+  }
+
   @override
   void onClose() {
     _syncDebounce?.cancel();
     _eventSub?.cancel();
+    _profileSubscription?.cancel();
     _autoReplyEventStreamAttached = false;
     super.onClose();
   }

@@ -10,6 +10,7 @@ import '../../widgets/common/app_widgets.dart';
 import '../../widgets/common/status_badge.dart';
 import '../../models/replymet_user.dart';
 import '../../models/plan_model.dart';
+import '../../models/approval_model.dart';
 import '../../core/constants/app_constants.dart';
 import '../../models/activity_log.dart';
 import '../../models/broker_model.dart';
@@ -320,7 +321,8 @@ class _BrokerApprovalCard extends ConsumerWidget {
                   fontSize: 14),
             ),
           ),
-          Flexible(
+          SizedBox(
+            width: 220,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -328,13 +330,19 @@ class _BrokerApprovalCard extends ConsumerWidget {
                 Text(user.name,
                     style: TextStyle(color: textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text(user.email, style: TextStyle(color: textSecondary, fontSize: 11), maxLines: 1),
+                Text(user.email, style: TextStyle(color: textSecondary, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
                 Text(user.phone, style: TextStyle(color: textSecondary, fontSize: 11)),
                 const SizedBox(height: 4),
                 Row(children: [
                   StatusBadge(status: user.status),
                   const SizedBox(width: 6),
-                  Text(AppUtils.formatDate(user.createdAt), style: TextStyle(color: textSecondary, fontSize: 10)),
+                  Expanded(
+                    child: Text(
+                      AppUtils.formatDate(user.createdAt),
+                      style: TextStyle(color: textSecondary, fontSize: 10),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ]),
               ],
             ),
@@ -380,14 +388,14 @@ class _BrokerApprovalDialogState
 
   @override
   Widget build(BuildContext context) {
-    final plansAsync = ref.watch(activePlansStreamProvider);
+    final plansAsync = ref.watch(brokerAssignedPlansProvider);
     final currentBroker = ref.watch(currentBrokerProvider).valueOrNull;
 
     double brokerCommission = 0;
     double adminRevenue = 0;
     if (_selectedPlan != null && currentBroker != null) {
-      adminRevenue = _selectedPlan!.price * currentBroker.commissionPercent / 100;
-      brokerCommission = _selectedPlan!.price - adminRevenue;
+      brokerCommission = _selectedPlan!.price * currentBroker.commissionPercent / 100;
+      adminRevenue = _selectedPlan!.price - brokerCommission;
     }
 
     return AlertDialog(
@@ -502,19 +510,57 @@ class _BrokerApprovalDialogState
                             fontWeight: FontWeight.w700,
                             fontSize: 13)),
                     const SizedBox(height: 8),
-                    _RevRow('Admin Revenue (${currentBroker.commissionPercent}%)',
+                    _RevRow('Admin Revenue (${100 - currentBroker.commissionPercent}%)',
                         AppUtils.formatCurrency(adminRevenue)),
-                    _RevRow('Your Commission (${100 - currentBroker.commissionPercent}%)',
+                    _RevRow('Your Commission (${currentBroker.commissionPercent}%)',
                         AppUtils.formatCurrency(brokerCommission),
                         color: AppTheme.accentColor),
                   ],
                 ),
               ),
-],
             ],
-          ),
+            FutureBuilder<ApprovalModel?>(
+              future: ref.read(firestoreServiceProvider).getLatestApprovalForUser(widget.user.uid),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data != null) {
+                  final oldApp = snapshot.data!;
+                  final approvedAt = oldApp.approvedAt;
+                  if (approvedAt != null) {
+                    final diff = DateTime.now().difference(approvedAt);
+                    if (diff.inHours < 24) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.1),
+                            border: Border.all(color: Colors.amber),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 18),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Warning: A plan was assigned within the last 24 hours. Overriding it now will deduct/refund the old plan\'s revenue.',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.amber),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ],
         ),
       ),
+    ),
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
@@ -542,8 +588,8 @@ class _BrokerApprovalDialogState
     final currentBroker = ref.read(currentBrokerProvider).valueOrNull;
     if (currentUser == null || currentBroker == null) return;
 
-    final adminRevenue = plan.price * currentBroker.commissionPercent / 100;
-    final brokerCommission = plan.price - adminRevenue;
+    final brokerCommission = plan.price * currentBroker.commissionPercent / 100;
+    final adminRevenue = plan.price - brokerCommission;
 
     setState(() => _loading = true);
     try {

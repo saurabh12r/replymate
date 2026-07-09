@@ -36,5 +36,7 @@ String activityLogTypeLabel(EventType type) {
       return 'Outgoing (Answered)';
     case EventType.outgoingUnanswered:
       return 'Outgoing (No Answer)';
+    case EventType.scheduledSms:
+      return 'Scheduled SMS';
   }
 }

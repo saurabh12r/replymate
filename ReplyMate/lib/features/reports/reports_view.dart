@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'reports_controller.dart';
+import '../../core/theme/upcoming_feature_dialog.dart';
 
 /// Reports Summary View
 /// Stitch Screen ID: c69c1fd624e8483b9e12bc7a94f6a823
@@ -47,7 +48,7 @@ class ReportsView extends GetView<ReportsController> {
                   const SizedBox(height: 20),
                   _buildInsightCard(),
                   const SizedBox(height: 20),
-                  _buildCallBreakdown(),
+                  _buildCallBreakdown(context),
                   const SizedBox(height: 24),
                   _buildExportButton(),
                   const SizedBox(height: 24),
@@ -79,11 +80,9 @@ class ReportsView extends GetView<ReportsController> {
           // Back button
           IconButton(
             onPressed: Get.back,
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
+            icon: const BackButtonIcon(),
+            color: Colors.white,
+            iconSize: 20,
           ),
           const SizedBox(width: 4),
           Column(
@@ -333,7 +332,7 @@ class ReportsView extends GetView<ReportsController> {
   }
 
   // ── Call breakdown row ─────────────────────────────────────────────────────
-  Widget _buildCallBreakdown() {
+  Widget _buildCallBreakdown(BuildContext context) {
     return Obx(() {
       final total = controller.totalCalls.value;
       final missed = controller.missedCalls.value;
@@ -372,6 +371,7 @@ class ReportsView extends GetView<ReportsController> {
                 label: 'WhatsApp',
                 value: '$whatsapp',
                 color: const Color(0xFF25D366),
+                onTap: () => showUpcomingFeatureDialog(context, featureName: 'WhatsApp Call Reports'),
               ),
               const SizedBox(width: 10),
               _MiniStat(
@@ -621,12 +621,14 @@ class _MiniStat extends StatelessWidget {
     required this.label,
     required this.value,
     required this.color,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final Color color;
+  final VoidCallback? onTap;
 
   static const Color _onSurface = Color(0xFF191C1D);
   static const Color _onSurfaceVariant = Color(0xFF454652);
@@ -634,7 +636,9 @@ class _MiniStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -668,6 +672,7 @@ class _MiniStat extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

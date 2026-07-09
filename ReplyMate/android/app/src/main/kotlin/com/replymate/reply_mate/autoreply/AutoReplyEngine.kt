@@ -113,6 +113,10 @@ object AutoReplyEngine {
             Log.d(TAG, "Blocked: no store found in config")
             return false
         }
+        if (store.subscriptionId != null && store.subscriptionId != resolvedSubId) {
+            Log.d(TAG, "Blocked: store linked to a different subscriptionId storeSubId=${store.subscriptionId} resolvedSubId=$resolvedSubId")
+            return false
+        }
         if (!store.active) {
             Log.d(TAG, "Blocked: store inactive id=${store.id}")
             return false
@@ -191,7 +195,8 @@ object AutoReplyEngine {
                     phone = phoneNumber,
                     name = contactName,
                     replied = false,
-                    messageSent = message
+                    messageSent = message,
+                    isVacation = store.vacationMode
                 )
             } catch (e: Exception) {
                 Log.w(TAG, "Background appendCall failed", e)

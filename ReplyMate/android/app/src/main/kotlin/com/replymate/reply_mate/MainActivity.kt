@@ -780,10 +780,25 @@ class MainActivity : FlutterActivity() {
             ?: return emptyList()
         val list = sm.activeSubscriptionInfoList ?: return emptyList()
         return list.map { info ->
+            val number = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                try {
+                    sm.getPhoneNumber(info.subscriptionId)
+                } catch (e: SecurityException) {
+                    @Suppress("DEPRECATION")
+                    info.number.orEmpty()
+                } catch (e: Exception) {
+                    @Suppress("DEPRECATION")
+                    info.number.orEmpty()
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                info.number.orEmpty()
+            }
             mapOf(
                 "subscriptionId" to info.subscriptionId,
                 "displayName" to info.displayName?.toString().orEmpty(),
                 "simSlotIndex" to info.simSlotIndex,
+                "number" to number
             )
         }
     }

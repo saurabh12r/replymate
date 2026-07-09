@@ -13,14 +13,23 @@ class PushNotificationService {
   bool _initialized = false;
 
   static Future<void> init() async {
-    if (!Hive.isAdapterRegistered(45)) {
-      Hive.registerAdapter(PushNotificationAdapter());
+    try {
+      if (!Hive.isAdapterRegistered(45)) {
+        Hive.registerAdapter(PushNotificationAdapter());
+      }
+      instance._box = await Hive.openBox<PushNotification>(_boxName);
+      instance._initialized = true;
+      instance.cleanOldNotifications();
+    } catch (e) {
+      debugPrint('PushNotificationService init failed, attempting fallback: $e');
+      try {
+        await Hive.deleteBoxFromDisk(_boxName);
+        instance._box = await Hive.openBox<PushNotification>(_boxName);
+        instance._initialized = true;
+      } catch (e2) {
+        debugPrint('PushNotificationService fallback failed: $e2');
+      }
     }
-    instance._box = await Hive.openBox<PushNotification>(_boxName);
-    instance._initialized = true;
-    
-    // Optional: Keep only last 200 notifications to prevent infinite growth
-    instance.cleanOldNotifications();
   }
 
   /// Adds a new notification to the local store

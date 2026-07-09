@@ -14,6 +14,7 @@ List<ActivityLog> applyActivityLogFilters({
   final q = queryNormalized.trim().toLowerCase();
   final out = <ActivityLog>[];
   for (final e in sortedDesc) {
+    if (e.type == EventType.scheduledSms) continue;
     switch (dateFilter) {
       case LogFilterType.today:
         if (!isToday(e.timestamp)) continue;

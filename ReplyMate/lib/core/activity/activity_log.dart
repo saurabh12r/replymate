@@ -12,6 +12,7 @@ class ActivityLog {
     required this.replied,
     this.messageSent = '',
     required this.timestamp,
+    this.isVacation = false,
   });
 
   String id;
@@ -23,6 +24,7 @@ class ActivityLog {
   /// SMS body that was sent (or intended) for this row.
   String messageSent;
   DateTime timestamp;
+  bool isVacation;
 }
 
 /// Hive v3: adds [messageSent]. [typeId] 44 — schema bump wipes box on upgrade.
@@ -43,6 +45,7 @@ class ActivityLogAdapter extends TypeAdapter<ActivityLog> {
         reader.readInt(),
         isUtc: true,
       ),
+      isVacation: reader.readBool(),
     );
   }
 
@@ -55,5 +58,6 @@ class ActivityLogAdapter extends TypeAdapter<ActivityLog> {
     writer.writeBool(obj.replied);
     writer.writeString(obj.messageSent);
     writer.writeInt(obj.timestamp.toUtc().millisecondsSinceEpoch);
+    writer.writeBool(obj.isVacation);
   }
 }

@@ -109,7 +109,7 @@ class SignupController extends GetxController {
 
     final isPhoneValid = RegExp(r'^[6-9]\d{9}$').hasMatch(phone);
     final isEmailValid =
-        email.isEmpty || RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
+        RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
 
     // Broker code: if entered, must be validated; if empty, OK (optional)
     final isBrokerOk = code.isEmpty || isBrokerCodeValid.value;
@@ -144,8 +144,10 @@ class SignupController extends GetxController {
       valid = false;
     }
 
-    if (email.isNotEmpty &&
-        !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+    if (email.isEmpty) {
+      emailError.value = 'Please enter your email address';
+      valid = false;
+    } else if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
       emailError.value = 'Please enter a valid email address';
       valid = false;
     }

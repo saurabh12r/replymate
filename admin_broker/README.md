@@ -1,17 +1,22 @@
-# admin_broker
+# ReplyMet Admin & Broker Management Panel
 
-A new Flutter project.
+A production-ready Flutter Web administrative console.
 
-## Getting Started
+## Running Locally (Mirroring Netlify)
 
-This project is a starting point for a Flutter application.
+To run the application locally on `http://localhost:8080` with the same SPA routing fallback rules as Netlify (ensuring direct link navigation and page refreshes work correctly):
 
-A few resources to get you started if this is your first Flutter project:
+### 1. Build the Flutter Web application
+This creates the release assets in `build/web`:
+```bash
+flutter build web --release
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+### 2. Start the local server
+Run the zero-dependency local Node.js server:
+```bash
+node serve.js
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The app will be served at **[http://localhost:8080](http://localhost:8080)**.
+

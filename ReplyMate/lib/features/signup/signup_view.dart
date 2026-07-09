@@ -118,7 +118,7 @@ class SignupView extends GetView<SignupController> {
                     ),
                     _buildError(controller.phoneError, colorScheme),
                     const SizedBox(height: 14),
-                    _buildLabel('Email (Optional)', colorScheme),
+                    _buildLabel('Email Address', colorScheme),
                     const SizedBox(height: 8),
                     AuthTextField(
                       controller: controller.emailController,
@@ -205,11 +205,9 @@ class SignupView extends GetView<SignupController> {
         children: [
           IconButton(
             onPressed: controller.goToLogin,
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
+            icon: const BackButtonIcon(),
+            color: Colors.white,
+            iconSize: 20,
           ),
           const SizedBox(width: 4),
           Container(

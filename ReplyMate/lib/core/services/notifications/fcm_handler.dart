@@ -51,6 +51,13 @@ class PushNotificationHandler {
     final title = message.notification?.title;
     final body = message.notification?.body;
     
+    // If it's a silent notification (no title/body in notification and data payloads),
+    // do not store it in the user's notification list.
+    if (title == null && body == null && message.data['title'] == null && message.data['body'] == null) {
+      debugPrint('FCM: Ignoring silent background message');
+      return;
+    }
+    
     // Fallback to data payload if notification is empty
     final finalTitle = title ?? message.data['title'] ?? 'New Notification';
     final finalBody = body ?? message.data['body'] ?? 'You have a new message';

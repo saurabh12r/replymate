@@ -4,8 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../core/services/auth/phone_auth_service.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../../core/services/permissions/permission_service.dart';
+import '../../core/services/auto_reply/auto_reply_bridge.dart';
+import '../../core/contact_filter/contact_filter_phone_normalize.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/services/auth/user_repository.dart';
+import '../../core/services/subscription/subscription_service.dart';
 
 /// OtpController
 /// Stitch Screen ID: 57e63680f2bb41daa9a7b0c10941fd6d
@@ -192,7 +197,81 @@ class OtpController extends GetxController {
   // ── Back navigation ───────────────────────────────────────────────────────
   void goBack() => Get.back();
 
-  void _navigatePostLogin() {
-    Get.offAllNamed(Routes.dashboard);
+  void _navigatePostLogin() async {
+    Get.dialog(
+      const Center(child: CircularProgressIndicator()),
+      barrierDismissible: false,
+    );
+
+    await Permission.phone.request();
+
+    final isSimMatched = await _checkSimMatch(phoneNumber);
+
+    Get.back(); // close loader
+
+    if (!isSimMatched) {
+      Get.snackbar(
+        'SIM Error',
+        'SIM is not in the same phone',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+      );
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+      Get.offAllNamed(Routes.login);
+      return;
+    }
+
+    final permService = PermissionService();
+    final allGranted = await permService.checkAllPermissions();
+    final batteryOptimization = await Permission.ignoreBatteryOptimizations.isGranted;
+    if (!allGranted || !batteryOptimization) {
+      Get.offAllNamed(Routes.permissions);
+    } else {
+      final route = await SubscriptionService.instance.determineRouteForCurrentSession();
+      Get.offAllNamed(route);
+    }
+  }
+
+  Future<bool> _checkSimMatch(String loginPhone) async {
+    try {
+      final bridge = AutoReplyBridge();
+      final sims = await bridge.listSubscriptionInfos();
+      if (sims.isEmpty) {
+        return false;
+      }
+
+      final cleanLoginPhone = contactFilterNormalizeRawToCanonical(loginPhone);
+      if (cleanLoginPhone.isEmpty) return false;
+
+      final useSuffix = cleanLoginPhone.length >= 10;
+      final loginMatchString = useSuffix
+          ? cleanLoginPhone.substring(cleanLoginPhone.length - 10)
+          : cleanLoginPhone;
+
+      final allEmpty = sims.every((sim) => (sim['number'] as String? ?? '').trim().isEmpty);
+      if (allEmpty) {
+        return true;
+      }
+
+      for (final sim in sims) {
+        final number = sim['number'] as String? ?? '';
+        if (number.isNotEmpty) {
+          final cleanSim = contactFilterNormalizeRawToCanonical(number);
+          final simMatchString = (useSuffix && cleanSim.length >= 10)
+              ? cleanSim.substring(cleanSim.length - 10)
+              : cleanSim;
+          if (simMatchString == loginMatchString) {
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch (e) {
+      return true;
+    }
   }
 }

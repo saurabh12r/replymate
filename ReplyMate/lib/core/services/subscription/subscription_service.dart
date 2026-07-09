@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../routes/app_routes.dart';
+import '../auth/session_identity.dart';
 
 /// Subscription states for ReplyMate users
 enum SubscriptionStatus {
   loading,
   pending, // registered, isApproved=false, isBlocked=false
+  scheduled, // approved, subscriptionStart in the future
   active, // isApproved=true, subscription not expired
   expired, // isApproved=false, subscriptionEnd in the past
   blocked, // isBlocked=true
@@ -14,6 +18,7 @@ enum SubscriptionStatus {
 class SubscriptionInfo {
   final SubscriptionStatus status;
   final String planName;
+  final DateTime? subscriptionStart;
   final DateTime? subscriptionEnd;
   final String? brokerId;
   final String? brokerCode;
@@ -26,6 +31,7 @@ class SubscriptionInfo {
   const SubscriptionInfo({
     required this.status,
     this.planName = '',
+    this.subscriptionStart,
     this.subscriptionEnd,
     this.brokerId,
     this.brokerCode,
@@ -53,6 +59,8 @@ class SubscriptionInfo {
         return 'Active';
       case SubscriptionStatus.pending:
         return 'Pending Approval';
+      case SubscriptionStatus.scheduled:
+        return 'Scheduled';
       case SubscriptionStatus.expired:
         return 'Expired';
       case SubscriptionStatus.blocked:
@@ -74,6 +82,10 @@ class SubscriptionInfo {
     final isApproved = data['isApproved'] == true;
     final isBlocked = data['isBlocked'] == true;
 
+    DateTime? subStart;
+    final rawStart = data['subscriptionStart'];
+    if (rawStart is Timestamp) subStart = rawStart.toDate();
+
     DateTime? subEnd;
     final rawEnd = data['subscriptionEnd'];
     if (rawEnd is Timestamp) subEnd = rawEnd.toDate();
@@ -83,6 +95,8 @@ class SubscriptionInfo {
       status = SubscriptionStatus.blocked;
     } else if (!isApproved) {
       status = SubscriptionStatus.pending;
+    } else if (subStart != null && subStart.isAfter(DateTime.now())) {
+      status = SubscriptionStatus.scheduled;
     } else if (subEnd != null && subEnd.isBefore(DateTime.now())) {
       status = SubscriptionStatus.expired;
     } else {
@@ -94,6 +108,7 @@ class SubscriptionInfo {
       planName: (data['planName'] as String?)?.trim().isNotEmpty == true
           ? data['planName'] as String
           : (data['planId'] as String? ?? ''),
+      subscriptionStart: subStart,
       subscriptionEnd: subEnd,
       brokerId: data['brokerId'],
       brokerCode: data['brokerCode'],
@@ -111,6 +126,36 @@ class SubscriptionInfo {
 class SubscriptionService {
   SubscriptionService._();
   static final instance = SubscriptionService._();
+
+  Future<String> determineRouteForCurrentSession() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return Routes.login;
+    final phone = sessionPhone(user);
+    final info = await getOnce(user.uid, phone: phone);
+    
+    if (info.status == SubscriptionStatus.active ||
+        info.status == SubscriptionStatus.pending ||
+        info.status == SubscriptionStatus.scheduled ||
+        info.status == SubscriptionStatus.unknown ||
+        info.status == SubscriptionStatus.loading) {
+      startWatching(user.uid, phone: phone);
+    }
+    
+    switch (info.status) {
+      case SubscriptionStatus.active:
+        return Routes.dashboard;
+      case SubscriptionStatus.pending:
+      case SubscriptionStatus.scheduled:
+        return Routes.pendingApproval;
+      case SubscriptionStatus.expired:
+        return Routes.subscriptionExpired;
+      case SubscriptionStatus.blocked:
+        return Routes.accountBlocked;
+      case SubscriptionStatus.unknown:
+      case SubscriptionStatus.loading:
+        return Routes.dashboard;
+    }
+  }
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   StreamSubscription<DocumentSnapshot>? _sub;

@@ -232,6 +232,56 @@ class FirestoreService {
     final endDate = AppUtils.calculateEndDate(startDate, plan.durationDays);
     final batch = _db.batch();
 
+    // Check if user was already approved to decide whether to increment totalUsers
+    final userDoc = await _db.collection(AppConstants.replymetUsersCollection).doc(userId).get();
+    final wasApproved = userDoc.exists && (userDoc.data()?['isApproved'] ?? false) == true;
+
+    // CHECK FOR OVERRIDE WITHIN 24 HOURS
+    final approvalsSnap = await _db.collection(AppConstants.approvalsCollection)
+        .where('userId', isEqualTo: userId)
+        .orderBy('approvedAt', descending: true)
+        .limit(1)
+        .get();
+
+    double oldAmount = 0.0;
+    double oldCommission = 0.0;
+    double oldAdminRevenue = 0.0;
+    String? oldBrokerId;
+    String? oldApprovedByRole;
+    DocumentReference? oldApprovalRef;
+    bool shouldDeduct = false;
+
+    if (approvalsSnap.docs.isNotEmpty) {
+      final doc = approvalsSnap.docs.first;
+      final oldApproval = ApprovalModel.fromMap(doc.data(), doc.id);
+      final approvedAt = oldApproval.approvedAt;
+      if (approvedAt != null) {
+        final diff = DateTime.now().difference(approvedAt);
+        if (diff.inHours < 24) {
+          shouldDeduct = true;
+          oldAmount = oldApproval.amount;
+          oldCommission = oldApproval.brokerCommission;
+          oldAdminRevenue = oldApproval.adminRevenue;
+          oldBrokerId = oldApproval.brokerId;
+          oldApprovedByRole = oldApproval.approvedByRole;
+          oldApprovalRef = doc.reference;
+        }
+      }
+    }
+
+    if (shouldDeduct) {
+      batch.delete(oldApprovalRef!);
+      if (oldApprovedByRole == 'broker' && oldBrokerId != null && oldBrokerId.isNotEmpty) {
+        final oldBrokerRef = _db.collection(AppConstants.brokersCollection).doc(oldBrokerId);
+        batch.update(oldBrokerRef, {
+          'totalRevenue': FieldValue.increment(-oldAmount),
+          'walletBalance': FieldValue.increment(-oldCommission),
+          'totalAdminRevenue': FieldValue.increment(-oldAdminRevenue),
+          'totalPendingPayment': FieldValue.increment(-oldAdminRevenue),
+        });
+      }
+    }
+
     // 1. Update replymet user — sync isApproved/isBlocked for mobile app compatibility
     final userRef = _db.collection(AppConstants.replymetUsersCollection).doc(userId);
     batch.update(userRef, {
@@ -246,8 +296,8 @@ class FirestoreService {
       'subscriptionStart': Timestamp.fromDate(startDate),
       'subscriptionEnd': Timestamp.fromDate(endDate),
       'totalPaid': plan.price,
-      'brokerCommission': brokerCommission,
-      'adminRevenue': adminRevenue,
+      'brokerCommission': shouldDeduct && oldApprovedByRole == 'broker' ? brokerCommission - oldCommission : brokerCommission,
+      'adminRevenue': shouldDeduct ? adminRevenue - oldAdminRevenue : adminRevenue,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -286,7 +336,7 @@ class FirestoreService {
     if (brokerId != null && brokerId.isNotEmpty) {
       final brokerRef = _db.collection(AppConstants.brokersCollection).doc(brokerId);
       batch.update(brokerRef, {
-        'totalUsers': FieldValue.increment(1),
+        if (!wasApproved) 'totalUsers': FieldValue.increment(1),
         'totalRevenue': FieldValue.increment(plan.price),
         'walletBalance': FieldValue.increment(brokerCommission),
         'totalAdminRevenue': FieldValue.increment(adminRevenue),
@@ -380,6 +430,121 @@ class FirestoreService {
     await batch.commit();
   }
 
+  /// Delete/Remove user plan and reset subscription status
+  Future<void> removeUserPlan(String userId, {required String performedBy, required String performedByRole}) async {
+    final userRef = _db.collection(AppConstants.replymetUsersCollection).doc(userId);
+    final userDoc = await userRef.get();
+    if (!userDoc.exists) return;
+
+    final data = userDoc.data() ?? {};
+    final brokerId = data['brokerId'] as String?;
+    final isApproved = data['isApproved'] as bool? ?? false;
+
+    final batch = _db.batch();
+
+    batch.update(userRef, {
+      'status': AppConstants.statusPending,
+      'isApproved': false,
+      'approvedBy': FieldValue.delete(),
+      'approvedByRole': FieldValue.delete(),
+      'planId': FieldValue.delete(),
+      'planName': FieldValue.delete(),
+      'subscriptionStart': FieldValue.delete(),
+      'subscriptionEnd': FieldValue.delete(),
+      'totalPaid': 0.0,
+      'brokerCommission': 0.0,
+      'adminRevenue': 0.0,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Reset broker totalUsers if the user was approved
+    if (brokerId != null && brokerId.isNotEmpty && isApproved) {
+      final brokerRef = _db.collection(AppConstants.brokersCollection).doc(brokerId);
+      batch.update(brokerRef, {
+        'totalUsers': FieldValue.increment(-1),
+      });
+    }
+
+    // Log subscription history for plan removal
+    final historyRef = userRef.collection('subscription_history').doc();
+    batch.set(historyRef, {
+      'planId': data['planId'] ?? '',
+      'planName': data['planName'] ?? 'None',
+      'startDate': data['subscriptionStart'],
+      'endDate': data['subscriptionEnd'],
+      'status': AppConstants.statusPending,
+      'amount': (data['totalPaid'] ?? 0.0).toDouble(),
+      'action': 'plan_removed',
+      'performedBy': performedBy,
+      'performedByRole': performedByRole,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  /// Delete/Remove user queued plan
+  Future<void> removeQueuePlan(
+    String userId, {
+    required String performedBy,
+    required String performedByRole,
+  }) async {
+    final userRef = _db.collection(AppConstants.replymetUsersCollection).doc(userId);
+    final userDoc = await userRef.get();
+    if (!userDoc.exists) return;
+
+    final data = userDoc.data() ?? {};
+    final nextPlanId = data['nextPlanId'] as String?;
+    final brokerId = data['brokerId'] as String?;
+
+    if (nextPlanId == null || nextPlanId.isEmpty) return;
+
+    final batch = _db.batch();
+
+    // Revert broker stats if broker exists
+    if (brokerId != null && brokerId.isNotEmpty) {
+      // Fetch plan to get price
+      final planDoc = await _db.collection(AppConstants.plansCollection).doc(nextPlanId).get();
+      final brokerDoc = await _db.collection(AppConstants.brokersCollection).doc(brokerId).get();
+      if (planDoc.exists && brokerDoc.exists) {
+        final planPrice = (planDoc.data()?['price'] ?? 0.0).toDouble();
+        final commissionPercent = (brokerDoc.data()?['commissionPercent'] ?? 0.0).toDouble();
+        final brokerCommission = planPrice * commissionPercent / 100;
+        final adminRevenue = planPrice - brokerCommission;
+
+        batch.update(_db.collection(AppConstants.brokersCollection).doc(brokerId), {
+          'totalRevenue': FieldValue.increment(-planPrice),
+          'walletBalance': FieldValue.increment(-brokerCommission),
+          'totalAdminRevenue': FieldValue.increment(-adminRevenue),
+        });
+      }
+    }
+
+    batch.update(userRef, {
+      'nextPlanId': FieldValue.delete(),
+      'nextPlanName': FieldValue.delete(),
+      'nextPlanDurationDays': FieldValue.delete(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Log subscription history for queue plan removal
+    final historyRef = userRef.collection('subscription_history').doc();
+    batch.set(historyRef, {
+      'planId': nextPlanId,
+      'planName': data['nextPlanName'] ?? 'None',
+      'startDate': null,
+      'endDate': null,
+      'status': 'queued_removed',
+      'amount': 0.0,
+      'action': 'queue_removed',
+      'performedBy': performedBy,
+      'performedByRole': performedByRole,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
   /// Move user from broker to admin (direct management)
   Future<void> moveUserToAdmin(String userId) async {
     final userDoc = await _db.collection(AppConstants.replymetUsersCollection).doc(userId).get();
@@ -409,6 +574,56 @@ class FirestoreService {
     await batch.commit();
   }
 
+  /// Assign a user to a broker (from Direct Admin or another broker)
+  Future<void> assignUserToBroker(String userId, String brokerId) async {
+    final userDoc = await _db.collection(AppConstants.replymetUsersCollection).doc(userId).get();
+    if (!userDoc.exists) return;
+
+    final user = ReplymetUser.fromDoc(userDoc);
+    final oldBrokerId = user.brokerId;
+    final isApproved = user.isApproved;
+
+    // Fetch new broker to get brokerCode and check limits
+    final brokerDoc = await _db.collection(AppConstants.brokersCollection).doc(brokerId).get();
+    if (!brokerDoc.exists) {
+      throw Exception('Broker not found');
+    }
+    final brokerData = brokerDoc.data() ?? {};
+    final brokerCode = brokerData['brokerCode'] as String? ?? '';
+    final maxUsers = brokerData['maxUsers'] as int? ?? 0;
+    final totalUsers = brokerData['totalUsers'] as int? ?? 0;
+
+    // If active/approved, check maxUsers limit on new broker
+    if (isApproved && maxUsers > 0 && totalUsers >= maxUsers) {
+      throw Exception('Broker has reached their limit of $maxUsers users.');
+    }
+
+    final batch = _db.batch();
+
+    // 1. Update user with new brokerId and brokerCode
+    batch.update(_db.collection(AppConstants.replymetUsersCollection).doc(userId), {
+      'brokerId': brokerId,
+      'brokerCode': brokerCode,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // 2. Decrement old broker count if it existed and user was approved
+    if (oldBrokerId != null && oldBrokerId.isNotEmpty && isApproved) {
+      batch.update(_db.collection(AppConstants.brokersCollection).doc(oldBrokerId), {
+        'totalUsers': FieldValue.increment(-1),
+      });
+    }
+
+    // 3. Increment new broker count if user is approved
+    if (isApproved) {
+      batch.update(_db.collection(AppConstants.brokersCollection).doc(brokerId), {
+        'totalUsers': FieldValue.increment(1),
+      });
+    }
+
+    await batch.commit();
+  }
+
   /// Assign/renew a plan for an existing user (including expired users)
   Future<void> assignPlanToUser({
     required String userId,
@@ -418,10 +633,57 @@ class FirestoreService {
     String? brokerId,
     required double brokerCommission,
     required double adminRevenue,
+    DateTime? startDate,
   }) async {
-    final startDate = DateTime.now();
-    final endDate = AppUtils.calculateEndDate(startDate, plan.durationDays);
+    final finalStartDate = startDate ?? DateTime.now();
+    final endDate = AppUtils.calculateEndDate(finalStartDate, plan.durationDays);
     final batch = _db.batch();
+
+    // CHECK FOR OVERRIDE WITHIN 24 HOURS
+    final approvalsSnap = await _db.collection(AppConstants.approvalsCollection)
+        .where('userId', isEqualTo: userId)
+        .orderBy('approvedAt', descending: true)
+        .limit(1)
+        .get();
+
+    double oldAmount = 0.0;
+    double oldCommission = 0.0;
+    double oldAdminRevenue = 0.0;
+    String? oldBrokerId;
+    String? oldApprovedByRole;
+    DocumentReference? oldApprovalRef;
+    bool shouldDeduct = false;
+
+    if (approvalsSnap.docs.isNotEmpty) {
+      final doc = approvalsSnap.docs.first;
+      final oldApproval = ApprovalModel.fromMap(doc.data(), doc.id);
+      final approvedAt = oldApproval.approvedAt;
+      if (approvedAt != null) {
+        final diff = DateTime.now().difference(approvedAt);
+        if (diff.inHours < 24) {
+          shouldDeduct = true;
+          oldAmount = oldApproval.amount;
+          oldCommission = oldApproval.brokerCommission;
+          oldAdminRevenue = oldApproval.adminRevenue;
+          oldBrokerId = oldApproval.brokerId;
+          oldApprovedByRole = oldApproval.approvedByRole;
+          oldApprovalRef = doc.reference;
+        }
+      }
+    }
+
+    if (shouldDeduct) {
+      batch.delete(oldApprovalRef!);
+      if (oldApprovedByRole == 'broker' && oldBrokerId != null && oldBrokerId.isNotEmpty) {
+        final oldBrokerRef = _db.collection(AppConstants.brokersCollection).doc(oldBrokerId);
+        batch.update(oldBrokerRef, {
+          'totalRevenue': FieldValue.increment(-oldAmount),
+          'walletBalance': FieldValue.increment(-oldCommission),
+          'totalAdminRevenue': FieldValue.increment(-oldAdminRevenue),
+          'totalPendingPayment': FieldValue.increment(-oldAdminRevenue),
+        });
+      }
+    }
 
     final userRef = _db.collection(AppConstants.replymetUsersCollection).doc(userId);
     batch.update(userRef, {
@@ -430,11 +692,11 @@ class FirestoreService {
       'isBlocked': false,
       'planId': plan.planId,
       'planName': plan.name,
-      'subscriptionStart': Timestamp.fromDate(startDate),
+      'subscriptionStart': Timestamp.fromDate(finalStartDate),
       'subscriptionEnd': Timestamp.fromDate(endDate),
       'totalPaid': plan.price,
-      'brokerCommission': FieldValue.increment(brokerCommission),
-      'adminRevenue': FieldValue.increment(adminRevenue),
+      'brokerCommission': FieldValue.increment(shouldDeduct && oldApprovedByRole == 'broker' ? brokerCommission - oldCommission : brokerCommission),
+      'adminRevenue': FieldValue.increment(shouldDeduct ? adminRevenue - oldAdminRevenue : adminRevenue),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -457,7 +719,7 @@ class FirestoreService {
     batch.set(historyRef, {
       'planId': plan.planId,
       'planName': plan.name,
-      'startDate': Timestamp.fromDate(startDate),
+      'startDate': Timestamp.fromDate(finalStartDate),
       'endDate': Timestamp.fromDate(endDate),
       'status': AppConstants.statusActive,
       'amount': plan.price,
@@ -488,14 +750,26 @@ class FirestoreService {
     String? brokerId,
     required double brokerCommission,
     required double adminRevenue,
+    DateTime? startDate,
   }) async {
     final batch = _db.batch();
 
     final userRef = _db.collection(AppConstants.replymetUsersCollection).doc(userId);
+
+    Timestamp? nextPlanStartTimestamp;
+    Timestamp? nextPlanEndTimestamp;
+    if (startDate != null) {
+      nextPlanStartTimestamp = Timestamp.fromDate(startDate);
+      final endDate = AppUtils.calculateEndDate(startDate, plan.durationDays);
+      nextPlanEndTimestamp = Timestamp.fromDate(endDate);
+    }
+
     batch.update(userRef, {
       'nextPlanId': plan.planId,
       'nextPlanName': plan.name,
       'nextPlanDurationDays': plan.durationDays,
+      'nextPlanStartDate': nextPlanStartTimestamp,
+      'nextPlanEndDate': nextPlanEndTimestamp,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -503,8 +777,8 @@ class FirestoreService {
     batch.set(historyRef, {
       'planId': plan.planId,
       'planName': plan.name,
-      'startDate': null,
-      'endDate': null,
+      'startDate': nextPlanStartTimestamp,
+      'endDate': nextPlanEndTimestamp,
       'status': 'queued',
       'amount': plan.price,
       'action': 'queued',
@@ -673,6 +947,16 @@ class FirestoreService {
         .set({...log.toMap(), 'createdAt': FieldValue.serverTimestamp()});
   }
 
+  Future<ApprovalModel?> getLatestApprovalForUser(String userId) async {
+    final snap = await _db.collection(AppConstants.approvalsCollection)
+        .where('userId', isEqualTo: userId)
+        .orderBy('approvedAt', descending: true)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return ApprovalModel.fromMap(snap.docs.first.data(), snap.docs.first.id);
+  }
+
   Stream<List<ActivityLog>> activityLogsStream({int limit = 50}) {
     return _db
         .collection(AppConstants.logsCollection)
@@ -819,41 +1103,65 @@ class FirestoreService {
 
   // Create notification for expiring subscriptions (called by scheduled job)
   Future<void> notifyExpiringSubscriptions() async {
-    final twoDaysFromNow = DateTime.now().add(const Duration(days: 2));
+    final oneDayFromNow = DateTime.now().add(const Duration(days: 1));
     final usersSnap = await _db.collection(AppConstants.replymetUsersCollection)
-        .where('subscriptionEnd', isLessThanOrEqualTo: Timestamp.fromDate(twoDaysFromNow))
+        .where('subscriptionEnd', isLessThanOrEqualTo: Timestamp.fromDate(oneDayFromNow))
         .where('subscriptionEnd', isGreaterThan: Timestamp.fromDate(DateTime.now()))
         .where('status', isEqualTo: 'active')
         .get();
 
     for (final userDoc in usersSnap.docs) {
       final user = ReplymetUser.fromDoc(userDoc);
-      final daysLeft = user.subscriptionEnd!.difference(DateTime.now()).inDays;
       
-      if (user.brokerId != null) {
+      // Only notify if there is no queue plan
+      if (user.nextPlanId != null && user.nextPlanId!.isNotEmpty) {
+        continue;
+      }
+      
+      final diff = user.subscriptionEnd!.difference(DateTime.now());
+      final hoursLeft = diff.inHours;
+      final timeStr = hoursLeft > 24 ? '${diff.inDays} day(s)' : '$hoursLeft hour(s)';
+
+      // 1. Notify Broker
+      if (user.brokerId != null && user.brokerId!.isNotEmpty) {
         await createNotification(AppNotification(
           id: AppUtils.generateId(),
           title: 'Subscription Expiring Soon',
-          message: '${user.name}\'s subscription expires in $daysLeft days.',
+          message: '${user.name}\'s subscription expires in $timeStr.',
           type: NotificationType.subscriptionExpiringSoon,
           userId: user.uid,
           userName: user.name,
           userPhone: user.phone,
           targetRole: 'broker',
-          targetId: user.brokerId,
+          targetId: user.brokerId!,
           createdAt: DateTime.now(),
         ));
       }
 
+      // 2. Notify Admin
       await createNotification(AppNotification(
         id: AppUtils.generateId(),
         title: 'Subscription Expiring Soon',
-        message: '${user.name}\'s subscription expires in $daysLeft days.',
+        message: '${user.name}\'s subscription expires in $timeStr.',
         type: NotificationType.subscriptionExpiringSoon,
         userId: user.uid,
         userName: user.name,
         userPhone: user.phone,
         targetRole: 'admin',
+        createdAt: DateTime.now(),
+      ));
+
+      // 3. Notify User
+      await createNotification(AppNotification(
+        id: AppUtils.generateId(),
+        title: 'Subscription Expiring Soon',
+        message: 'Your subscription expires in $timeStr. Please renew your plan.',
+        type: NotificationType.subscriptionExpiringSoon,
+        userId: user.uid,
+        userName: user.name,
+        userPhone: user.phone,
+        targetRole: 'user',
+        targetId: user.uid,
         createdAt: DateTime.now(),
       ));
     }
@@ -1055,6 +1363,12 @@ class FirestoreService {
           'smsFailed': (d['smsFailed'] ?? 0) as int,
           'callsReceived': (d['callsReceived'] ?? 0) as int,
           'missedCalls': (d['missedCalls'] ?? 0) as int,
+          'incomingCalls': (d['incomingCalls'] ?? 0) as int,
+          'outgoingCalls': (d['outgoingCalls'] ?? 0) as int,
+          'scheduledSmsSent': (d['scheduledSmsSent'] ?? 0) as int,
+          'scheduledSmsFailed': (d['scheduledSmsFailed'] ?? 0) as int,
+          'vacationSent': (d['vacationSent'] ?? 0) as int,
+          'vacationFailed': (d['vacationFailed'] ?? 0) as int,
           'newUsers': (d['newUsers'] ?? 0) as int,
           'renewedUsers': (d['renewedUsers'] ?? 0) as int,
           'expiredUsers': (d['expiredUsers'] ?? 0) as int,
@@ -1073,8 +1387,12 @@ class FirestoreService {
           smsFailed: g['smsFailed'] ?? 0,
           callsReceived: g['callsReceived'] ?? 0,
           missedCalls: g['missedCalls'] ?? 0,
-          incomingCalls: 0,
-          outgoingCalls: 0,
+          incomingCalls: g['incomingCalls'] ?? 0,
+          outgoingCalls: g['outgoingCalls'] ?? 0,
+          scheduledSmsSent: g['scheduledSmsSent'] ?? 0,
+          scheduledSmsFailed: g['scheduledSmsFailed'] ?? 0,
+          vacationSent: g['vacationSent'] ?? 0,
+          vacationFailed: g['vacationFailed'] ?? 0,
           newUsers: g['newUsers'] ?? 0,
           renewedUsers: g['renewedUsers'] ?? 0,
           expiredUsers: g['expiredUsers'] ?? 0,

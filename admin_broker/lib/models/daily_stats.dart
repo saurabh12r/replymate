@@ -10,6 +10,10 @@ class DailyStats {
   final int missedCalls;
   final int incomingCalls;
   final int outgoingCalls;
+  final int scheduledSmsSent;
+  final int scheduledSmsFailed;
+  final int vacationSent;
+  final int vacationFailed;
   final int newUsers;
   final int renewedUsers;
   final int expiredUsers;
@@ -24,6 +28,10 @@ class DailyStats {
     this.missedCalls = 0,
     this.incomingCalls = 0,
     this.outgoingCalls = 0,
+    this.scheduledSmsSent = 0,
+    this.scheduledSmsFailed = 0,
+    this.vacationSent = 0,
+    this.vacationFailed = 0,
     this.newUsers = 0,
     this.renewedUsers = 0,
     this.expiredUsers = 0,
@@ -40,6 +48,10 @@ class DailyStats {
       missedCalls: map['missedCalls'] ?? 0,
       incomingCalls: map['incomingCalls'] ?? 0,
       outgoingCalls: map['outgoingCalls'] ?? 0,
+      scheduledSmsSent: map['scheduledSmsSent'] ?? 0,
+      scheduledSmsFailed: map['scheduledSmsFailed'] ?? 0,
+      vacationSent: map['vacationSent'] ?? 0,
+      vacationFailed: map['vacationFailed'] ?? 0,
       newUsers: map['newUsers'] ?? 0,
       renewedUsers: map['renewedUsers'] ?? 0,
       expiredUsers: map['expiredUsers'] ?? 0,
@@ -64,6 +76,10 @@ class DailyStats {
       'missedCalls': missedCalls,
       'incomingCalls': incomingCalls,
       'outgoingCalls': outgoingCalls,
+      'scheduledSmsSent': scheduledSmsSent,
+      'scheduledSmsFailed': scheduledSmsFailed,
+      'vacationSent': vacationSent,
+      'vacationFailed': vacationFailed,
       'newUsers': newUsers,
       'renewedUsers': renewedUsers,
       'expiredUsers': expiredUsers,

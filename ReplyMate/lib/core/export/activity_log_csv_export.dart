@@ -50,6 +50,7 @@ String _eventTypeExportLabel(ActivityLog log) {
     EventType.rejectedCall => 'Rejected',
     EventType.outgoingAnswered => 'Outgoing Answered',
     EventType.outgoingUnanswered => 'Outgoing Unanswered',
+    EventType.scheduledSms => 'Scheduled SMS',
   };
   final outcome = log.replied ? 'Reply Sent' : 'Reply Failed';
   return '$channel — $outcome';

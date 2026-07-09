@@ -18,6 +18,7 @@ class BrokerModel {
   final double totalPaidToAdmin;
   final double totalAdminRevenue;
   final int maxUsers;
+  final List<String> assignedPlanIds;
 
   const BrokerModel({
     required this.brokerId,
@@ -35,6 +36,7 @@ class BrokerModel {
     this.totalPaidToAdmin = 0,
     this.totalAdminRevenue = 0,
     this.maxUsers = 0,
+    this.assignedPlanIds = const [],
   });
 
   factory BrokerModel.fromMap(Map<String, dynamic> map, String id) {
@@ -54,6 +56,7 @@ class BrokerModel {
       totalPaidToAdmin: (map['totalPaidToAdmin'] ?? 0).toDouble(),
       totalAdminRevenue: (map['totalAdminRevenue'] ?? 0).toDouble(),
       maxUsers: map['maxUsers'] ?? 0,
+      assignedPlanIds: List<String>.from(map['assignedPlanIds'] ?? []),
     );
   }
 
@@ -97,6 +100,7 @@ class BrokerModel {
       'totalPaidToAdmin': totalPaidToAdmin,
       'totalAdminRevenue': totalAdminRevenue,
       'maxUsers': maxUsers,
+      'assignedPlanIds': assignedPlanIds,
     };
   }
 
@@ -116,6 +120,7 @@ class BrokerModel {
     double? totalPaidToAdmin,
     double? totalAdminRevenue,
     int? maxUsers,
+    List<String>? assignedPlanIds,
   }) {
     return BrokerModel(
       brokerId: brokerId ?? this.brokerId,
@@ -133,6 +138,7 @@ class BrokerModel {
       totalPaidToAdmin: totalPaidToAdmin ?? this.totalPaidToAdmin,
       totalAdminRevenue: totalAdminRevenue ?? this.totalAdminRevenue,
       maxUsers: maxUsers ?? this.maxUsers,
+      assignedPlanIds: assignedPlanIds ?? this.assignedPlanIds,
     );
   }
 }

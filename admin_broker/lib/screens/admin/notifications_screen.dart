@@ -57,7 +57,7 @@ class AdminNotificationsScreen extends ConsumerWidget {
                     isDark: isDark,
                     onTap: () => _handleNotificationTap(context, ref, n),
                     onMarkRead: () => _markRead(ref, n.id),
-                    onDelete: () => _deleteNotification(ref, n.id),
+                    onDelete: () => _deleteNotification(context, ref, n.id),
                   )).toList(),
                 ),
               );
@@ -78,8 +78,17 @@ class AdminNotificationsScreen extends ConsumerWidget {
     ref.read(firestoreServiceProvider).markNotificationRead(id);
   }
 
-  void _deleteNotification(WidgetRef ref, String id) {
-    ref.read(firestoreServiceProvider).deleteNotification(id);
+  void _deleteNotification(BuildContext context, WidgetRef ref, String id) async {
+    await ConfirmDialog.show(
+      context,
+      title: 'Delete Notification',
+      content: 'Are you sure you want to delete this notification?',
+      confirmText: 'Delete',
+      confirmColor: AppTheme.errorColor,
+      onConfirm: () async {
+        await ref.read(firestoreServiceProvider).deleteNotification(id);
+      },
+    );
   }
 
   void _handleNotificationTap(BuildContext context, WidgetRef ref, AppNotification n) {
@@ -140,7 +149,7 @@ class BrokerNotificationsScreen extends ConsumerWidget {
                     isDark: isDark,
                     onTap: () => _handleNotificationTap(context, ref, n),
                     onMarkRead: () => _markRead(ref, n.id),
-                    onDelete: () => _deleteNotification(ref, n.id),
+                    onDelete: () => _deleteNotification(context, ref, n.id),
                   )).toList(),
                 ),
               );
@@ -164,8 +173,17 @@ class BrokerNotificationsScreen extends ConsumerWidget {
     ref.read(firestoreServiceProvider).markNotificationRead(id);
   }
 
-  void _deleteNotification(WidgetRef ref, String id) {
-    ref.read(firestoreServiceProvider).deleteNotification(id);
+  void _deleteNotification(BuildContext context, WidgetRef ref, String id) async {
+    await ConfirmDialog.show(
+      context,
+      title: 'Delete Notification',
+      content: 'Are you sure you want to delete this notification?',
+      confirmText: 'Delete',
+      confirmColor: AppTheme.errorColor,
+      onConfirm: () async {
+        await ref.read(firestoreServiceProvider).deleteNotification(id);
+      },
+    );
   }
 
   void _handleNotificationTap(BuildContext context, WidgetRef ref, AppNotification n) {

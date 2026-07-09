@@ -21,4 +21,5 @@ abstract class Routes {
   static const accountBlocked = '/account-blocked';
   
   static const notifications = '/notifications';
+  static const permissions = '/permissions';
 }

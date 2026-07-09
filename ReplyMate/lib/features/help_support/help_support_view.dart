@@ -51,7 +51,7 @@ class _HelpSupportViewState extends State<HelpSupportView> {
           style: GoogleFonts.manrope(fontWeight: FontWeight.w700),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: const BackButtonIcon(),
           onPressed: () => Navigator.pop(context),
         ),
       ),

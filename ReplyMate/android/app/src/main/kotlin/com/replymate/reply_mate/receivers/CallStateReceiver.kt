@@ -45,23 +45,26 @@ class CallStateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val pendingResult = goAsync()
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            val startTime = System.currentTimeMillis()
             try {
                 onReceiveImpl(context, intent)
-                // Keep the receiver process alive for 4 seconds to ensure Firestore async sync
-                kotlinx.coroutines.delay(4000)
             } catch (t: Throwable) {
                 Log.e(TAG, "onReceive failed", t)
             } finally {
+                // Ensure the receiver process stays alive for at least 4 seconds total
+                // to let background tasks (like Firestore sync) complete.
+                val elapsed = System.currentTimeMillis() - startTime
+                val remaining = 4000L - elapsed
+                if (remaining > 0) {
+                    try { kotlinx.coroutines.delay(remaining) } catch (_: Exception) {}
+                }
                 pendingResult.finish()
             }
         }
     }
 
 
-    private fun onReceiveImpl(context: Context, intent: Intent) {
-        val configStore = AutoReplyConfigStore(context)
-        
-        // 1. Real-time fallback sync from Firestore
+    private fun syncBlockedStatusFromFirestore(context: Context, configStore: AutoReplyConfigStore) {
         try {
             if (FirebaseApp.getApps(context).isEmpty()) {
                 FirebaseApp.initializeApp(context.applicationContext)
@@ -76,14 +79,20 @@ class CallStateReceiver : BroadcastReceiver() {
                     val isBlocked = doc.getBoolean("isBlocked") == true
                     val isApproved = doc.getBoolean("isApproved") == true
                     
+                    val subStartTimestamp = doc.getTimestamp("subscriptionStart")
+                    val subStartMs = subStartTimestamp?.toDate()?.time ?: 0L
+                    
                     val subEndTimestamp = doc.getTimestamp("subscriptionEnd")
                     val subEndMs = subEndTimestamp?.toDate()?.time ?: 0L
                     
+                    val nowMs = System.currentTimeMillis()
+                    val isNotStarted = subStartMs > 0L && nowMs < subStartMs
+                    
                     // Check if expired in Firestore
-                    val isExpired = subEndMs > 0L && System.currentTimeMillis() > subEndMs
+                    val isExpired = subEndMs > 0L && nowMs > subEndMs
                     val nextPlanDur = doc.getLong("nextPlanDurationDays")?.toInt() ?: 0
                     
-                    var finalBlocked = isBlocked || !isApproved
+                    var finalBlocked = isBlocked || !isApproved || isNotStarted
                     if (isExpired) {
                         if (nextPlanDur > 0) {
                             val newSubEndMs = subEndMs + nextPlanDur * 24L * 60L * 60L * 1000L
@@ -99,11 +108,20 @@ class CallStateReceiver : BroadcastReceiver() {
                     }
                     
                     configStore.setBlocked(finalBlocked)
-                    Log.d(TAG, "Real-time background sync from Firestore successful: blocked=$finalBlocked subEndMs=$subEndMs nextPlanDur=$nextPlanDur")
+                    Log.d(TAG, "Real-time background sync from Firestore successful: blocked=$finalBlocked subStartMs=$subStartMs subEndMs=$subEndMs nextPlanDur=$nextPlanDur")
                 }
             }
         } catch (e: Exception) {
             Log.w(TAG, "Real-time background sync from Firestore failed/timed out: ${e.message}")
+        }
+    }
+
+    private fun onReceiveImpl(context: Context, intent: Intent) {
+        val configStore = AutoReplyConfigStore(context)
+        
+        // Launch real-time fallback sync from Firestore in the background
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            syncBlockedStatusFromFirestore(context, configStore)
         }
 
         if (configStore.getBlocked()) {
@@ -144,8 +162,8 @@ class CallStateReceiver : BroadcastReceiver() {
                         incoming,
                         sub
                     )
-                    store.reset()
-                    // Persist the new state before returning early
+                    // Do not reset the store here, to preserve the active call's state
+                    // so it can trigger its own event when it ends (transitions to IDLE).
                     store.lastPhoneState = state
                     return
                 }
@@ -162,10 +180,14 @@ class CallStateReceiver : BroadcastReceiver() {
                 store.isOnCall = true
                 if (prevState == TelephonyManager.EXTRA_STATE_IDLE && !store.wasRinging) {
                     store.wasOutgoing = true
-                    Log.d(TAG, "Detected OUTGOING call start (IDLE->OFFHOOK)")
+                    store.ringingStartedAt = System.currentTimeMillis() // Set start time for outgoing call
+                    Log.d(TAG, "Detected OUTGOING call start (IDLE->OFFHOOK) set start time: ${store.ringingStartedAt}")
                 }
                 if (!incoming.isNullOrBlank()) {
                     store.incomingNumber = incoming
+                    if (store.wasOutgoing) {
+                        store.outgoingNumber = incoming
+                    }
                 }
                 if (store.wasRinging) {
                     store.wasOffhook = true
@@ -179,8 +201,6 @@ class CallStateReceiver : BroadcastReceiver() {
 
                 // Staleness guard: if RINGING was never recorded (ringingStartedAt == 0)
                 // this is an orphan IDLE from a previous call whose state was never set.
-                // Or if too much time has passed since RINGING, the call is stale —
-                // discard to prevent a Doze-delayed broadcast from firing a late SMS.
                 val ringingAt = store.ringingStartedAt
                 val idleAt = store.callIdleAt
                 val callAgeMs = if (ringingAt > 0L) idleAt - ringingAt else Long.MAX_VALUE
@@ -188,17 +208,28 @@ class CallStateReceiver : BroadcastReceiver() {
                 if (store.wasOutgoing || store.wasRinging) {
                     if (ringingAt == 0L) {
                         Log.w(TAG, "Orphan IDLE: wasRinging/wasOutgoing=true but ringingStartedAt=0. Discarding stale event.")
-                    } else if (callAgeMs > MAX_CALL_AGE_MS) {
-                        Log.w(
-                            TAG,
-                            "Stale IDLE discarded: call age=${callAgeMs / 1000}s exceeds ${MAX_CALL_AGE_MS / 1000}s limit. " +
-                            "Android likely batched this broadcast (Doze mode). " +
-                            "ringingAt=$ringingAt idleAt=$idleAt"
-                        )
-                    } else if (store.wasOutgoing) {
-                        handleOutgoingCallEnded(context, store)
                     } else {
-                        handleIncomingCallEnded(context, incoming, store)
+                        // For unanswered incoming calls (missed, rejected), the duration is 0,
+                        // so callAgeMs (idleAt - ringingAt) represents the ringing duration.
+                        // Ringing duration never exceeds 2-3 minutes. If it exceeds 5 minutes,
+                        // it's a stale/batched event.
+                        // Answered calls (wasOffhook = true) or outgoing calls can last any duration,
+                        // so we do not apply the 5-minute duration limit to them.
+                        val isAnsweredIncoming = !store.wasOutgoing && store.wasOffhook
+                        val isStaleUnanswered = !isAnsweredIncoming && !store.wasOutgoing && (callAgeMs > MAX_CALL_AGE_MS)
+
+                        if (isStaleUnanswered) {
+                            Log.w(
+                                TAG,
+                                "Stale unanswered IDLE discarded: call age=${callAgeMs / 1000}s exceeds ${MAX_CALL_AGE_MS / 1000}s limit. " +
+                                "Android likely batched this broadcast (Doze mode). " +
+                                "ringingAt=$ringingAt idleAt=$idleAt"
+                            )
+                        } else if (store.wasOutgoing) {
+                            handleOutgoingCallEnded(context, store)
+                        } else {
+                            handleIncomingCallEnded(context, incoming, store)
+                        }
                     }
                 }
 
@@ -305,25 +336,25 @@ class CallStateReceiver : BroadcastReceiver() {
         ringingStartedAt: Long
     ): CallSubscriptionResolver.RecentCallInfo? {
         // Use ringing-start as the lower bound so only entries created DURING or
-        // AFTER this call are accepted.  Allow a 2 s margin for clock jitter.
-        val cutoff = if (ringingStartedAt > 0L) ringingStartedAt - 2_000L
+        // AFTER this call are accepted. Allow a 15 s margin for clock jitter and dialing-to-OFFHOOK latency.
+        val cutoff = if (ringingStartedAt > 0L) ringingStartedAt - 15_000L
                      else System.currentTimeMillis() - 30_000L
 
         fun isFresh(info: CallSubscriptionResolver.RecentCallInfo) = info.timestamp >= cutoff
 
-        // First attempt — no delay
-        var callInfo = CallSubscriptionResolver.getLatestCallLogEntry(context)
-        if (callInfo != null && isFresh(callInfo)) return callInfo
-
-        // Second attempt after short delay
-        try { Thread.sleep(200) } catch (_: Exception) {}
-        callInfo = CallSubscriptionResolver.getLatestCallLogEntry(context)
-        if (callInfo != null && isFresh(callInfo)) return callInfo
-
-        // Third attempt after another short delay
-        try { Thread.sleep(300) } catch (_: Exception) {}
-        callInfo = CallSubscriptionResolver.getLatestCallLogEntry(context)
-        if (callInfo != null && isFresh(callInfo)) return callInfo
+        // Retry delays: 0ms, 150ms, 250ms, 400ms, 700ms, 1000ms
+        val retryDelays = arrayOf(0L, 150L, 250L, 400L, 700L, 1000L)
+        for (i in retryDelays.indices) {
+            val delay = retryDelays[i]
+            if (delay > 0) {
+                try { Thread.sleep(delay) } catch (_: Exception) {}
+            }
+            val callInfo = CallSubscriptionResolver.getLatestCallLogEntry(context)
+            if (callInfo != null && isFresh(callInfo)) {
+                Log.d(TAG, "getRecentCallLogWithRetry: found fresh entry on attempt ${i + 1} (after ${delay}ms delay)")
+                return callInfo
+            }
+        }
 
         // No fresh entry after all retries — return null so we never use a stale number.
         Log.d(TAG, "getRecentCallLogWithRetry: no fresh entry for cutoff=$cutoff, returning null")

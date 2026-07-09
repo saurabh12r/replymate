@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/data_providers.dart';
 
 const double _mobileBreakpoint = 600;
 
@@ -106,7 +107,7 @@ class _DesktopShell extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _DesktopTopBar(isDark: isDark),
+                _DesktopTopBar(isDark: isDark, isAdmin: isAdmin),
                 Expanded(child: child),
               ],
             ),
@@ -251,8 +252,9 @@ class _DesktopSidebar extends ConsumerWidget {
 
 class _DesktopTopBar extends ConsumerWidget {
   final bool isDark;
+  final bool isAdmin;
 
-  const _DesktopTopBar({required this.isDark});
+  const _DesktopTopBar({required this.isDark, required this.isAdmin});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -260,6 +262,7 @@ class _DesktopTopBar extends ConsumerWidget {
     final border = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
     final textSecondary = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
     final isDarkMode = ref.watch(themeModeProvider);
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
 
     return Container(
       height: 64,
@@ -304,9 +307,10 @@ class _DesktopTopBar extends ConsumerWidget {
           ),
           const SizedBox(width: 8),
           IconButton(
-            onPressed: () {},
+            onPressed: () => context.go(isAdmin ? '/admin/notifications' : '/broker/notifications'),
             icon: Badge(
-              smallSize: 8,
+              label: Text('$unreadCount'),
+              isLabelVisible: unreadCount > 0,
               backgroundColor: AppTheme.errorColor,
               child: Icon(Icons.notifications_outlined, color: textSecondary, size: 20),
             ),

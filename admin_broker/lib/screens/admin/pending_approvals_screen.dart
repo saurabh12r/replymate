@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/app_utils.dart';
 import '../../models/replymet_user.dart';
 import '../../models/plan_model.dart';
+import '../../models/approval_model.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/service_providers.dart';
 import '../../providers/auth_provider.dart';
@@ -465,6 +466,44 @@ class _ApprovalDialogState extends ConsumerState<_ApprovalDialog> {
                 ),
               ),
             ],
+            FutureBuilder<ApprovalModel?>(
+              future: ref.read(firestoreServiceProvider).getLatestApprovalForUser(widget.user.uid),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data != null) {
+                  final oldApp = snapshot.data!;
+                  final approvedAt = oldApp.approvedAt;
+                  if (approvedAt != null) {
+                    final diff = DateTime.now().difference(approvedAt);
+                    if (diff.inHours < 24) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.1),
+                            border: Border.all(color: Colors.amber),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 18),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Warning: A plan was assigned within the last 24 hours. Overriding it now will deduct/refund the old plan\'s revenue.',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.amber),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                }
+                return const SizedBox.shrink();
+              },
+            ),
           ],
         ),
       ),

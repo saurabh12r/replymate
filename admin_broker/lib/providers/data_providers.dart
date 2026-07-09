@@ -24,6 +24,29 @@ final activePlansStreamProvider = StreamProvider<List<PlanModel>>((ref) {
   return ref.watch(firestoreServiceProvider).activePlansStream();
 });
 
+final brokerAssignedPlansProvider = Provider<AsyncValue<List<PlanModel>>>((ref) {
+  final activePlansAsync = ref.watch(activePlansStreamProvider);
+  final brokerAsync = ref.watch(currentBrokerProvider);
+
+  return brokerAsync.when(
+    data: (broker) {
+      return activePlansAsync.when(
+        data: (plans) {
+          if (broker == null || broker.assignedPlanIds.isEmpty) {
+            return AsyncValue.data(plans);
+          }
+          final filtered = plans.where((p) => broker.assignedPlanIds.contains(p.planId)).toList();
+          return AsyncValue.data(filtered);
+        },
+        loading: () => const AsyncValue.loading(),
+        error: (e, s) => AsyncValue.error(e, s),
+      );
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (e, s) => AsyncValue.error(e, s),
+  );
+});
+
 // ─── BROKERS ──────────────────────────────────────────────────────────────────
 
 final brokersStreamProvider = StreamProvider<List<BrokerModel>>((ref) {

@@ -6,9 +6,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/activity/activity_log.dart';
 import '../../core/activity/activity_log_service.dart';
 import '../../core/activity/today_stats.dart';
+import '../../core/analytics/analytics_filter.dart';
 import '../../core/notifications/push_notification_service.dart';
+import '../../core/theme/upcoming_feature_dialog.dart';
+import '../analytics_nav/analytics_nav_controller.dart';
+import '../analytics_nav/analytics_nav_view.dart';
 import '../dashboard/dashboard_controller.dart';
-import 'dashboard_nav_controller.dart';
 
 /// Dashboard Home Tab (content only — no bottom nav)
 /// Used inside DashboardNavView as tab 0.
@@ -37,6 +40,23 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
     });
   }
 
+  void _navigateToAnalytics({
+    required AnalyticsFilter filter,
+    String callFilter = 'All',
+    String messageFilter = 'All',
+    String statusFilter = 'All',
+  }) {
+    if (Get.isRegistered<AnalyticsNavController>()) {
+      final analyticsCtrl = Get.find<AnalyticsNavController>();
+      analyticsCtrl.selectedFilter.value = filter;
+      analyticsCtrl.customDateRange.value = null;
+      analyticsCtrl.callFilter.value = callFilter;
+      analyticsCtrl.messageFilter.value = messageFilter;
+      analyticsCtrl.statusFilter.value = statusFilter;
+    }
+    Get.to(() => const AnalyticsNavView());
+  }
+
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
@@ -48,7 +68,11 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
             delegate: SliverChildListDelegate([
               _buildAutoReplyCard(context),
               const SizedBox(height: 20),
-              _buildSectionLabel(context, 'Today\'s Activity'),
+              _buildSectionLabel(
+                context,
+                'Today\'s Activity',
+                onTap: () => _navigateToAnalytics(filter: AnalyticsFilter.daily),
+              ),
               const SizedBox(height: 12),
               _buildStatsGrid(),
               const SizedBox(height: 20),
@@ -412,29 +436,32 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: ValueListenableBuilder<Box<ActivityLog>>(
-                valueListenable: ActivityLogService.instance.box.listenable(),
-                builder: (context, box, _) {
-                  final stats = calculateTodayStats(box.values.toList());
-                  return Row(
-                    children: [
-                      _StatChip(
-                        value: '${stats.sent}',
-                        label: 'Sent Today',
-                        color: _secondary,
-                        icon: Icons.check_circle_rounded,
-                      ),
-                      const SizedBox(width: 10),
-                      _StatChip(
-                        value: '${stats.failed}',
-                        label: 'Failed',
-                        color: _error,
-                        icon: Icons.cancel_rounded,
-                      ),
-                    ],
-                  );
-                },
-              ),
+              child: Obx(() {
+                final isEnabled = controller.autoReplyEnabled.value;
+                return ValueListenableBuilder<Box<ActivityLog>>(
+                  valueListenable: ActivityLogService.instance.box.listenable(),
+                  builder: (context, box, _) {
+                    final stats = calculateTodayStats(box.values.toList(), autoReplyEnabled: isEnabled);
+                    return Row(
+                      children: [
+                        _StatChip(
+                          value: '${stats.sent}',
+                          label: 'Sent Today',
+                          color: _secondary,
+                          icon: Icons.check_circle_rounded,
+                        ),
+                        const SizedBox(width: 10),
+                        _StatChip(
+                          value: '${stats.failed}',
+                          label: 'Failed',
+                          color: _error,
+                          icon: Icons.cancel_rounded,
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }),
             ),
           ],
         ),
@@ -443,46 +470,106 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
   }
 
   Widget _buildStatsGrid() {
-    return ValueListenableBuilder<Box<ActivityLog>>(
-      valueListenable: ActivityLogService.instance.box.listenable(),
-      builder: (context, box, _) {
-        final stats = calculateTodayStats(box.values.toList());
-        return GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.35,
-          children: [
-            _StatCard(
-              icon: Icons.call_rounded,
-              label: 'Total Calls',
-              value: '${stats.totalCalls}',
-              color: _primary,
-            ),
-            _StatCard(
-              icon: Icons.phone_missed_rounded,
-              label: 'Missed Calls',
-              value: '${stats.missedCalls}',
-              color: _error,
-            ),
-            _StatCard(
-              icon: Icons.forum_rounded,
-              label: 'WhatsApp Calls',
-              value: '${stats.whatsappCalls}',
-              color: const Color(0xFF25D366),
-            ),
-            _StatCard(
-              icon: Icons.send_rounded,
-              label: 'Replies Sent',
-              value: '${stats.repliesSent}',
-              color: _secondary,
-            ),
-          ],
-        );
-      },
-    );
+    return Obx(() {
+      final isEnabled = controller.autoReplyEnabled.value;
+      return ValueListenableBuilder<Box<ActivityLog>>(
+        valueListenable: ActivityLogService.instance.box.listenable(),
+        builder: (context, box, _) {
+          final stats = calculateTodayStats(box.values.toList(), autoReplyEnabled: isEnabled);
+          return GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.35,
+            children: [
+              _StatCard(
+                icon: Icons.call_rounded,
+                label: 'Total Calls',
+                value: '${stats.totalCalls}',
+                color: _primary,
+                onTap: () => _navigateToAnalytics(
+                  filter: AnalyticsFilter.daily,
+                  callFilter: 'All Calls',
+                ),
+              ),
+              _StatCard(
+                icon: Icons.phone_missed_rounded,
+                label: 'Missed Calls',
+                value: '${stats.missedCalls}',
+                color: _error,
+                onTap: () => _navigateToAnalytics(
+                  filter: AnalyticsFilter.daily,
+                  callFilter: 'Missed',
+                ),
+              ),
+              _StatCard(
+                icon: Icons.forum_rounded,
+                label: 'WhatsApp Calls',
+                value: '${stats.whatsappCalls}',
+                color: const Color(0xFF25D366),
+                onTap: () => showUpcomingFeatureDialog(context, featureName: 'WhatsApp Calls'),
+              ),
+              _StatCard(
+                icon: Icons.send_rounded,
+                label: 'Replies Sent',
+                value: '${stats.repliesSent}',
+                color: _secondary,
+                onTap: () => _navigateToAnalytics(
+                  filter: AnalyticsFilter.daily,
+                  statusFilter: 'Sent',
+                ),
+              ),
+              _StatCard(
+                icon: Icons.schedule_rounded,
+                label: 'Scheduled Sent',
+                value: '${stats.scheduledSent}',
+                color: Colors.orange,
+                onTap: () => _navigateToAnalytics(
+                  filter: AnalyticsFilter.daily,
+                  messageFilter: 'Scheduled',
+                  statusFilter: 'Sent',
+                ),
+              ),
+              _StatCard(
+                icon: Icons.sms_failed_rounded,
+                label: 'Scheduled Failed',
+                value: '${stats.scheduledFailed}',
+                color: Colors.redAccent,
+                onTap: () => _navigateToAnalytics(
+                  filter: AnalyticsFilter.daily,
+                  messageFilter: 'Scheduled',
+                  statusFilter: 'Failed',
+                ),
+              ),
+              _StatCard(
+                icon: Icons.beach_access_rounded,
+                label: 'Vacation Sent',
+                value: '${stats.vacationSent}',
+                color: Colors.purple,
+                onTap: () => _navigateToAnalytics(
+                  filter: AnalyticsFilter.daily,
+                  messageFilter: 'Vacation',
+                  statusFilter: 'Sent',
+                ),
+              ),
+              _StatCard(
+                icon: Icons.beach_access_rounded,
+                label: 'Vacation Failed',
+                value: '${stats.vacationFailed}',
+                color: Colors.deepOrangeAccent,
+                onTap: () => _navigateToAnalytics(
+                  filter: AnalyticsFilter.daily,
+                  messageFilter: 'Vacation',
+                  statusFilter: 'Failed',
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    });
   }
 
   // Kept for future use; the "Quick Actions" section is currently hidden.
@@ -537,14 +624,47 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
     );
   }
 
-  Widget _buildSectionLabel(BuildContext context, String label) {
-    return Text(
+  Widget _buildSectionLabel(BuildContext context, String label, {VoidCallback? onTap}) {
+    final textWidget = Text(
       label,
       style: GoogleFonts.manrope(
         fontSize: 14,
         fontWeight: FontWeight.w800,
         color: Theme.of(context).colorScheme.onSurface,
         letterSpacing: 0.1,
+      ),
+    );
+    if (onTap == null) return textWidget;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            textWidget,
+            Row(
+              children: [
+                Text(
+                  'View Analytics',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 11,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -558,17 +678,21 @@ class _StatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.color,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.cardColor,
@@ -616,8 +740,9 @@ class _StatCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _StatChip extends StatelessWidget {

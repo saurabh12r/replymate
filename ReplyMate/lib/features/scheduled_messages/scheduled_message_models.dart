@@ -1,15 +1,15 @@
-import 'dart:convert';
-
 class ScheduledMessage {
   final String id;
-  final String phoneNumber;
+  final String title;
+  final List<String> phoneNumbers;
   final String message;
   final DateTime scheduledTime;
   final bool isSent;
 
   ScheduledMessage({
     required this.id,
-    required this.phoneNumber,
+    required this.title,
+    required this.phoneNumbers,
     required this.message,
     required this.scheduledTime,
     this.isSent = false,
@@ -17,14 +17,16 @@ class ScheduledMessage {
 
   ScheduledMessage copyWith({
     String? id,
-    String? phoneNumber,
+    String? title,
+    List<String>? phoneNumbers,
     String? message,
     DateTime? scheduledTime,
     bool? isSent,
   }) {
     return ScheduledMessage(
       id: id ?? this.id,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
+      title: title ?? this.title,
+      phoneNumbers: phoneNumbers ?? this.phoneNumbers,
       message: message ?? this.message,
       scheduledTime: scheduledTime ?? this.scheduledTime,
       isSent: isSent ?? this.isSent,
@@ -34,7 +36,8 @@ class ScheduledMessage {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'phoneNumber': phoneNumber,
+      'title': title,
+      'phoneNumbers': phoneNumbers,
       'message': message,
       'scheduledTime': scheduledTime.toIso8601String(),
       'isSent': isSent,
@@ -44,7 +47,8 @@ class ScheduledMessage {
   factory ScheduledMessage.fromJson(Map<String, dynamic> json) {
     return ScheduledMessage(
       id: json['id'] ?? '',
-      phoneNumber: json['phoneNumber'] ?? '',
+      title: json['title'] ?? '',
+      phoneNumbers: List<String>.from(json['phoneNumbers'] ?? []),
       message: json['message'] ?? '',
       scheduledTime: DateTime.parse(json['scheduledTime'] as String),
       isSent: json['isSent'] ?? false,

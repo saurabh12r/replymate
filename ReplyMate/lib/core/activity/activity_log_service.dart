@@ -12,7 +12,7 @@ import 'activity_log_channel.dart';
 import 'event_type.dart';
 
 const String kActivityLogsBoxName = 'activity_logs';
-const int _kHiveActivitySchemaVersion = 4;
+const int _kHiveActivitySchemaVersion = 5;
 const String _kHiveSchemaPrefsKey = 'activity_logs_hive_schema_v';
 
 /// Hive-backed activity log + import from Android pending file.
@@ -43,7 +43,7 @@ class ActivityLogService {
     return b;
   }
 
-  /// Registers adapter, migrates schema if needed, opens [kActivityLogsBoxName].
+  /// Registers adapter, opens [kActivityLogsBoxName] safely, with a fallback recovery.
   static Future<void> init() async {
     void registerAdapterIfNeeded() {
       if (!Hive.isAdapterRegistered(ActivityLogAdapter().typeId)) {
@@ -55,9 +55,6 @@ class ActivityLogService {
       final prefs = await SharedPreferences.getInstance();
       final stored = prefs.getInt(_kHiveSchemaPrefsKey) ?? 0;
       if (stored < _kHiveActivitySchemaVersion) {
-        try {
-          await Hive.deleteBoxFromDisk(kActivityLogsBoxName);
-        } catch (_) {}
         await prefs.setInt(_kHiveSchemaPrefsKey, _kHiveActivitySchemaVersion);
       }
       registerAdapterIfNeeded();
@@ -75,11 +72,16 @@ class ActivityLogService {
       } catch (e2, st2) {
         assert(() {
           debugPrint(
-            'ReplyMate: ActivityLogService.init fallback failed: $e2\n$st2',
+            'ReplyMate: ActivityLogService.init fallback failed, deleting box: $e2\n$st2',
           );
           return true;
         }());
-        instance._box = null;
+        try {
+          await Hive.deleteBoxFromDisk(kActivityLogsBoxName);
+          instance._box = await Hive.openBox<ActivityLog>(kActivityLogsBoxName);
+        } catch (_) {
+          instance._box = null;
+        }
       }
     }
   }
@@ -131,6 +133,7 @@ class ActivityLogService {
                 replied: replied,
                 messageSent: existing.messageSent,
                 timestamp: existing.timestamp,
+                isVacation: existing.isVacation,
               ),
             );
             n++;
@@ -160,6 +163,7 @@ class ActivityLogService {
           if (typeIndex < 0 || typeIndex >= EventType.values.length) continue;
 
           final messageSent = map['messageSent'] as String? ?? '';
+          final isVacation = map['isVacation'] as bool? ?? false;
 
           final inserted = await _putIfAllowed(
             ActivityLog(
@@ -170,6 +174,7 @@ class ActivityLogService {
               replied: replied,
               messageSent: messageSent,
               timestamp: DateTime.fromMillisecondsSinceEpoch(ts, isUtc: true),
+              isVacation: isVacation,
             ),
           );
           if (inserted) n++;

@@ -127,10 +127,8 @@ class StoresListView extends StatelessWidget {
         children: [
           if (showBack)
             IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Colors.white,
-              ),
+              icon: const BackButtonIcon(),
+              color: Colors.white,
               onPressed: Get.back,
             )
           else

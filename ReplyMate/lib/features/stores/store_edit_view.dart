@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/stores/reply_store_models.dart';
+import '../../core/theme/upcoming_feature_dialog.dart';
 import 'stores_controller.dart';
 
 class StoreEditView extends StatefulWidget {
@@ -604,18 +605,34 @@ class _StoreEditViewState extends State<StoreEditView> {
             _sectionLabel(context, 'Messages'),
             const SizedBox(height: 10),
             ...ReplyStoreEventKeys.all.map((k) {
+              final isWhatsapp = k == ReplyStoreEventKeys.missedWhatsapp;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: _card(
-                  context,
-                  padding: const EdgeInsets.all(14),
-                  child: TextField(
-                    controller: _msgCtrls[k],
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      labelText: ReplyStoreEventKeys.label(k),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                child: GestureDetector(
+                  onTap: isWhatsapp
+                      ? () => showUpcomingFeatureDialog(context,
+                          featureName: 'WhatsApp Missed Call Reply')
+                      : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: AbsorbPointer(
+                    absorbing: isWhatsapp,
+                    child: _card(
+                      context,
+                      padding: const EdgeInsets.all(14),
+                      child: TextField(
+                        controller: _msgCtrls[k],
+                        enabled: !isWhatsapp,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          labelText: ReplyStoreEventKeys.label(k),
+                          suffixIcon: isWhatsapp
+                              ? const Icon(Icons.lock_clock_outlined,
+                                  color: Colors.grey)
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -640,18 +657,27 @@ class _StoreEditViewState extends State<StoreEditView> {
                     runSpacing: 4,
                     children: ReplyStoreEventKeys.all.map((k) {
                       final sel = _groupKeys.contains(k);
+                      final isWhatsapp = k == ReplyStoreEventKeys.missedWhatsapp;
                       return FilterChip(
                         label: Text(
                           ReplyStoreEventKeys.label(k),
                           style: TextStyle(
                             fontSize: 11,
-                            color: theme.colorScheme.onSurface,
+                            color: isWhatsapp
+                                ? theme.colorScheme.onSurface.withOpacity(0.5)
+                                : theme.colorScheme.onSurface,
+                            decoration: isWhatsapp ? TextDecoration.lineThrough : null,
                           ),
                         ),
                         selected: sel,
                         selectedColor: _primary.withAlpha(18),
                         checkmarkColor: _primary,
                         onSelected: (v) {
+                          if (isWhatsapp) {
+                            showUpcomingFeatureDialog(context,
+                                featureName: 'WhatsApp Bulk Reply');
+                            return;
+                          }
                           setState(() {
                             if (v) {
                               _groupKeys.add(k);

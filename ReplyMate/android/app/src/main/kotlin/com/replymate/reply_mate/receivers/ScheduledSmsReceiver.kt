@@ -12,6 +12,7 @@ import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.replymate.reply_mate.activity.ActivityLogPendingStore
 
 class ScheduledSmsReceiver : BroadcastReceiver() {
     companion object {
@@ -26,8 +27,9 @@ class ScheduledSmsReceiver : BroadcastReceiver() {
         val phone = intent.getStringExtra(EXTRA_PHONE) ?: return
         val message = intent.getStringExtra(EXTRA_MESSAGE) ?: return
 
-        if (com.replymate.reply_mate.autoreply.AutoReplyConfigStore(context).getBlocked()) {
-            Log.d(TAG, "ScheduledSmsReceiver blocked because subscription expired or blocked")
+        val config = com.replymate.reply_mate.autoreply.AutoReplyConfigStore(context)
+        if (!config.isEnabledFailSafe()) {
+            Log.d(TAG, "ScheduledSmsReceiver blocked because auto-reply is disabled or subscription is expired/blocked")
             return
         }
 
@@ -38,7 +40,19 @@ class ScheduledSmsReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val logId = UUID.randomUUID().toString()
+                val logId = id
+                
+                // Write a pending scheduled SMS activity log row natively
+                ActivityLogPendingStore.appendCall(
+                    context,
+                    id = logId,
+                    type = 7, // EventType.scheduledSms
+                    phone = phone,
+                    name = "",
+                    replied = false,
+                    messageSent = message,
+                    isVacation = false
+                )
 
                 // Resolve default SMS subscription
                 var subId = SubscriptionManager.getDefaultSmsSubscriptionId()
