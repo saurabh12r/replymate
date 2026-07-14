@@ -60,22 +60,29 @@ class _BrokersScreenState extends ConsumerState<BrokersScreen> {
                 int cols = 3;
                 if (constraints.maxWidth < 1100) cols = 2;
                 if (constraints.maxWidth < 700) cols = 1;
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: cols,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    mainAxisExtent: 395,
-                  ),
-                  itemCount: brokers.length,
-                  itemBuilder: (ctx, i) => _BrokerCard(
-                    broker: brokers[i],
-                    onToggle: () => _toggleBroker(context, ref, brokers[i]),
-                    onEdit: () => _showEditBrokerDialog(context, ref, brokers[i]),
-                    onDelete: () => _deleteBroker(context, ref, brokers[i]),
-                  ),
+                const spacing = 16.0;
+                // Let each card grow to fit its own content (the actions
+                // row varies in height when "Receive Payment" is shown), so
+                // buttons stay inside the card and remain tappable. The -0.5
+                // avoids sub-pixel rounding that would wrap the last column.
+                final cardWidth =
+                    (constraints.maxWidth - spacing * (cols - 1)) / cols - 0.5;
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: [
+                    for (final broker in brokers)
+                      SizedBox(
+                        width: cardWidth,
+                        child: _BrokerCard(
+                          broker: broker,
+                          onToggle: () => _toggleBroker(context, ref, broker),
+                          onEdit: () =>
+                              _showEditBrokerDialog(context, ref, broker),
+                          onDelete: () => _deleteBroker(context, ref, broker),
+                        ),
+                      ),
+                  ],
                 );
               });
             },
