@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/services/subscription/subscription_service.dart';
-import '../../core/services/permissions/permission_service.dart';
 
 /// SplashController — gates app entry based on subscription status
 class SplashController extends GetxController {
@@ -47,21 +45,15 @@ class SplashController extends GetxController {
     });
   }
 
-  void _go(String route) async {
+  void _go(String route) {
     _fallbackTimer?.cancel();
     if (_navigated) return;
     _navigated = true;
 
-    if (route == Routes.dashboard) {
-      final permService = PermissionService();
-      final allGranted = await permService.checkAllPermissions();
-      final batteryOptimization = await Permission.ignoreBatteryOptimizations.isGranted;
-      if (!allGranted || !batteryOptimization) {
-        Get.offNamed(Routes.permissions);
-        return;
-      }
-    }
-
+    // Permission setup is only part of the first-time login flow (handled after
+    // OTP verification). Returning users with an existing session go straight to
+    // their resolved route — we no longer force the permissions screen on every
+    // launch. Missing permissions can still be re-granted from Settings.
     Get.offNamed(route);
   }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -32,12 +34,37 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
   static const Color _secondary = Color(0xFF006A6A);
   static const Color _error = Color(0xFFBA1A1A);
 
+  /// Foreground backstop that keeps today's counters fresh while the dashboard
+  /// is open. It pulls whatever the native layer buffered — including events
+  /// that never emit on the auto-reply engine channel (e.g. missed calls while
+  /// auto-reply is off, or the delayed "replied" patch after a send). Cheap when
+  /// idle: [syncPendingFromNative] returns immediately when nothing is pending.
+  Timer? _foregroundRefreshTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ActivityLogService.instance.cleanOldLogs();
+      // Pull whatever native logged while the dashboard was away so the
+      // counters are current the moment the tab opens.
+      ActivityLogService.instance.syncPendingFromNative();
     });
+    _foregroundRefreshTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => ActivityLogService.instance.syncPendingFromNative(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _foregroundRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleRefresh() async {
+    await ActivityLogService.instance.syncPendingFromNative();
+    if (mounted) setState(() {});
   }
 
   void _navigateToAnalytics({
@@ -59,28 +86,32 @@ class _DashboardHomeTabState extends State<DashboardHomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(child: _buildHeader()),
-        SliverPadding(
-          padding: const EdgeInsets.all(20),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              _buildAutoReplyCard(context),
-              const SizedBox(height: 20),
-              _buildSectionLabel(
-                context,
-                'Today\'s Activity',
-                onTap: () => _navigateToAnalytics(filter: AnalyticsFilter.daily),
-              ),
-              const SizedBox(height: 12),
-              _buildStatsGrid(),
-              const SizedBox(height: 20),
-              const SizedBox(height: 24),
-            ]),
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(child: _buildHeader()),
+          SliverPadding(
+            padding: const EdgeInsets.all(20),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _buildAutoReplyCard(context),
+                const SizedBox(height: 20),
+                _buildSectionLabel(
+                  context,
+                  'Today\'s Activity',
+                  onTap: () => _navigateToAnalytics(filter: AnalyticsFilter.daily),
+                ),
+                const SizedBox(height: 12),
+                _buildStatsGrid(),
+                const SizedBox(height: 20),
+                const SizedBox(height: 24),
+              ]),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
